@@ -27,6 +27,7 @@ import org.aion.mcf.core.ImportResult;
 import org.aion.p2p.P2pConstant;
 import org.aion.types.ByteArrayWrapper;
 import org.aion.zero.impl.AionBlockchainImpl;
+import org.aion.zero.impl.SystemExitCodes;
 import org.aion.zero.impl.db.AionBlockStore;
 import org.aion.zero.impl.sync.PeerState.Mode;
 import org.aion.zero.impl.sync.statistics.BlockType;
@@ -268,8 +269,8 @@ final class TaskImportBlocks implements Runnable {
                 log.error("<import-block throw> ", e);
 
                 if (e.getMessage() != null && e.getMessage().contains("No space left on device")) {
-                    log.error("Shutdown due to lack of disk space.");
-                    System.exit(0);
+                    log.error("Shutdown due to lack of disk space.", e);
+                    System.exit(SystemExitCodes.OUT_OF_DISK_SPACE);
                 }
                 break;
             }
@@ -702,8 +703,8 @@ final class TaskImportBlocks implements Runnable {
                         log.error("<import-block throw> ", e);
                         if (e.getMessage() != null
                                 && e.getMessage().contains("No space left on device")) {
-                            log.error("Shutdown due to lack of disk space.");
-                            System.exit(0);
+                            log.error("Shutdown due to lack of disk space.", e);
+                            System.exit(SystemExitCodes.OUT_OF_DISK_SPACE);
                         }
                     }
                 }
