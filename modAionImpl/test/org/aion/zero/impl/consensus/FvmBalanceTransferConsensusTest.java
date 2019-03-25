@@ -14,6 +14,7 @@ import org.aion.mcf.core.ImportResult;
 import org.aion.precompiled.ContractFactory;
 import org.aion.types.Address;
 import org.aion.util.conversions.Hex;
+import org.aion.vm.VirtualMachineProvider;
 import org.aion.zero.impl.StandaloneBlockchain;
 import org.aion.zero.impl.StandaloneBlockchain.Builder;
 import org.aion.zero.impl.StandaloneBlockchain.Bundle;
@@ -51,10 +52,12 @@ public class FvmBalanceTransferConsensusTest {
                         .withAvmEnabled()
                         .build();
         this.blockchain = bundle.bc;
+        VirtualMachineProvider.initializeAllVirtualMachines();
     }
 
     @After
     public void tearDown() {
+        VirtualMachineProvider.shutdownAllVirtualMachines();
         this.blockchain = null;
     }
 
