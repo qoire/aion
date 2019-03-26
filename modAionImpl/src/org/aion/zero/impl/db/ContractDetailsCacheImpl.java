@@ -7,6 +7,7 @@ import java.util.Map.Entry;
 import java.util.Objects;
 import org.aion.interfaces.db.ByteArrayKeyValueStore;
 import org.aion.interfaces.db.ContractDetails;
+import org.aion.mcf.core.InternalState;
 import org.aion.types.Address;
 import org.aion.types.ByteArrayWrapper;
 
@@ -32,8 +33,8 @@ public class ContractDetailsCacheImpl extends AbstractContractDetails {
         ContractDetailsCacheImpl copy = new ContractDetailsCacheImpl(cache.origContract);
         copy.setCodes(new HashMap<>(cache.getCodes()));
         copy.storage = new HashMap<>(cache.storage);
-        copy.setDirty(cache.isDirty());
-        copy.setDeleted(cache.isDeleted());
+        copy.internalState =
+                new InternalState(cache.internalState.isDirty(), cache.internalState.isDeleted());
         copy.prune = cache.prune;
         copy.detailsInMemoryStorageLimit = cache.detailsInMemoryStorageLimit;
         return copy;
@@ -52,7 +53,7 @@ public class ContractDetailsCacheImpl extends AbstractContractDetails {
         Objects.requireNonNull(value);
 
         storage.put(key, value);
-        setDirty(true);
+        internalState.markDirty();
     }
 
     @Override
@@ -60,7 +61,7 @@ public class ContractDetailsCacheImpl extends AbstractContractDetails {
         Objects.requireNonNull(key);
 
         storage.put(key, null);
-        setDirty(true);
+        internalState.markDirty();
     }
 
     /**
@@ -174,12 +175,12 @@ public class ContractDetailsCacheImpl extends AbstractContractDetails {
             }
         }
 
+        // this will also mark it as dirty
         if (origContract instanceof AbstractContractDetails) {
             ((AbstractContractDetails) origContract).appendCodes(getCodes());
         } else {
             origContract.setCode(getCode());
         }
-        origContract.setDirty(this.isDirty() || origContract.isDirty());
     }
 
     /** This method is not supported. */
@@ -228,8 +229,8 @@ public class ContractDetailsCacheImpl extends AbstractContractDetails {
         contractDetailsCacheCopy.prune = this.prune;
         contractDetailsCacheCopy.detailsInMemoryStorageLimit = this.detailsInMemoryStorageLimit;
         contractDetailsCacheCopy.setCodes(getDeepCopyOfCodes());
-        contractDetailsCacheCopy.setDirty(this.isDirty());
-        contractDetailsCacheCopy.setDeleted(this.isDeleted());
+        contractDetailsCacheCopy.internalState =
+                new InternalState(this.internalState.isDirty(), this.internalState.isDeleted());
         return contractDetailsCacheCopy;
     }
 

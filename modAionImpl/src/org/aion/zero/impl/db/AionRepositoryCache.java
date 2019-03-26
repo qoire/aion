@@ -61,8 +61,7 @@ public class AionRepositoryCache implements RepositoryCache<AccountState, IBlock
 
             // TODO: unify contract details initialization from Impl and Track
             ContractDetails contractDetails = new ContractDetailsCacheImpl(null);
-            // TODO: refactor to use makeDirty() from AbstractState
-            contractDetails.setDirty(true);
+            // NOTE-Ale: it used to be marked dirty but it doesn't make sense
             cachedDetails.put(address, contractDetails);
 
             return accountState;
@@ -222,7 +221,7 @@ public class AionRepositoryCache implements RepositoryCache<AccountState, IBlock
         fullyWriteLock();
         try {
             getAccountState(address).delete();
-            getContractDetails(address).setDeleted(true);
+            getContractDetails(address).delete();
         } finally {
             fullyWriteUnlock();
         }
@@ -286,9 +285,7 @@ public class AionRepositoryCache implements RepositoryCache<AccountState, IBlock
             // TODO: why not create contract here directly? also need to check that there is no
             // preexisting code!
             ContractDetails contractDetails = getContractDetails(address);
-            contractDetails.setCode(code);
-            // TODO: ensure that setDirty is done by the class itself
-            contractDetails.setDirty(true);
+            contractDetails.setCode(code); // marks itself as dirty
 
             // update the code hash
             getAccountState(address).setCodeHash(h256(code));

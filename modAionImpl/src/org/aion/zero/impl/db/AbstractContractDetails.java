@@ -9,14 +9,14 @@ import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
 import org.aion.interfaces.db.ContractDetails;
+import org.aion.mcf.core.InternalState;
 import org.aion.types.ByteArrayWrapper;
 import org.aion.util.conversions.Hex;
 
 /** Abstract contract details. */
 public abstract class AbstractContractDetails implements ContractDetails {
 
-    private boolean dirty = false;
-    private boolean deleted = false;
+    protected InternalState internalState = new InternalState();
 
     protected int prune;
     protected int detailsInMemoryStorageLimit;
@@ -57,7 +57,7 @@ public abstract class AbstractContractDetails implements ContractDetails {
             e.printStackTrace();
             return;
         }
-        setDirty(true);
+        internalState.markDirty();
     }
 
     public Map<ByteArrayWrapper, byte[]> getCodes() {
@@ -69,27 +69,23 @@ public abstract class AbstractContractDetails implements ContractDetails {
     }
 
     public void appendCodes(Map<ByteArrayWrapper, byte[]> codes) {
+        this.internalState.markDirty();
         this.codes.putAll(codes);
     }
 
     @Override
-    public void setDirty(boolean dirty) {
-        this.dirty = dirty;
-    }
-
-    @Override
     public boolean isDirty() {
-        return dirty;
+        return internalState.isDirty();
     }
 
     @Override
-    public void setDeleted(boolean deleted) {
-        this.deleted = deleted;
+    public void delete() {
+        this.internalState.markDeleted();
     }
 
     @Override
     public boolean isDeleted() {
-        return deleted;
+        return internalState.isDeleted();
     }
 
     @Override

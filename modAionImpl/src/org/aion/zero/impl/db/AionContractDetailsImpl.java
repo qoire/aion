@@ -12,20 +12,19 @@ import java.util.Map.Entry;
 import java.util.Objects;
 import org.aion.interfaces.db.ByteArrayKeyValueStore;
 import org.aion.interfaces.db.ContractDetails;
-import org.aion.types.Address;
+import org.aion.mcf.core.InternalState;
 import org.aion.mcf.ds.XorDataSource;
 import org.aion.mcf.trie.SecureTrie;
 import org.aion.rlp.RLP;
 import org.aion.rlp.RLPElement;
 import org.aion.rlp.RLPItem;
 import org.aion.rlp.RLPList;
+import org.aion.types.Address;
 import org.aion.types.ByteArrayWrapper;
 
 public class AionContractDetailsImpl extends AbstractContractDetails {
 
     private ByteArrayKeyValueStore dataSource;
-
-    private byte[] rlpEncoded;
 
     private Address address;
 
@@ -73,14 +72,13 @@ public class AionContractDetailsImpl extends AbstractContractDetails {
         Objects.requireNonNull(value);
 
         // The following must be done before making this call:
-        // We strip leading zeros of a DataWordImpl but not a DoubleDataWord so that when we call get
+        // We strip leading zeros of a DataWordImpl but not a DoubleDataWord so that when we call
+        // get
         // we can differentiate between the two.
 
         byte[] data = RLP.encodeElement(value.getData());
         storageTrie.update(key.getData(), data);
-
-        this.setDirty(true);
-        this.rlpEncoded = null;
+        internalState.markDirty();
     }
 
     @Override
@@ -88,14 +86,12 @@ public class AionContractDetailsImpl extends AbstractContractDetails {
         Objects.requireNonNull(key);
 
         storageTrie.delete(key.getData());
-
-        this.setDirty(true);
-        this.rlpEncoded = null;
+        internalState.markDirty();
     }
 
     /**
-     * Returns the value associated with key if it exists, otherwise returns a DataWordImpl consisting
-     * entirely of zero bytes.
+     * Returns the value associated with key if it exists, otherwise returns a DataWordImpl
+     * consisting entirely of zero bytes.
      *
      * @param key The key to query.
      * @return the corresponding value or a zero-byte DataWordImpl if no such value.
@@ -154,7 +150,9 @@ public class AionContractDetailsImpl extends AbstractContractDetails {
         RLPItem storageRoot = (RLPItem) rlpList.get(2);
         RLPElement code = rlpList.get(4);
 
-        if (address == null || address.getRLPData() == null || address.getRLPData().length != Address.SIZE) {
+        if (address == null
+                || address.getRLPData() == null
+                || address.getRLPData().length != Address.SIZE) {
             throw new IllegalArgumentException("rlp decode error.");
         } else {
             this.address = Address.wrap(address.getRLPData());
@@ -182,7 +180,7 @@ public class AionContractDetailsImpl extends AbstractContractDetails {
             storageTrie.getCache().setDB(getExternalStorageDataSource());
         }
 
-        this.rlpEncoded = rlpCode;
+        this.internalState.setEncoding(rlpCode);
     }
 
     /**
@@ -192,7 +190,7 @@ public class AionContractDetailsImpl extends AbstractContractDetails {
      */
     @Override
     public byte[] getEncoded() {
-        if (rlpEncoded == null) {
+        if (internalState.getEncoding() == null) {
 
             byte[] rlpAddress = RLP.encodeElement(address.toBytes());
             byte[] rlpIsExternalStorage = RLP.encodeByte((byte) (externalStorage ? 1 : 0));
@@ -208,12 +206,12 @@ public class AionContractDetailsImpl extends AbstractContractDetails {
             }
             byte[] rlpCode = RLP.encodeList(codes);
 
-            this.rlpEncoded =
+            internalState.setEncoding(
                     RLP.encodeList(
-                            rlpAddress, rlpIsExternalStorage, rlpStorageRoot, rlpStorage, rlpCode);
+                            rlpAddress, rlpIsExternalStorage, rlpStorageRoot, rlpStorage, rlpCode));
         }
 
-        return rlpEncoded;
+        return internalState.getEncoding();
     }
 
     /**
@@ -237,7 +235,7 @@ public class AionContractDetailsImpl extends AbstractContractDetails {
             throw new IllegalArgumentException("Address can not be null!");
         }
         this.address = address;
-        this.rlpEncoded = null;
+        internalState.markDirty();
     }
 
     /** Syncs the storage trie. */
@@ -330,13 +328,15 @@ public class AionContractDetailsImpl extends AbstractContractDetails {
         aionContractDetailsCopy.prune = this.prune;
         aionContractDetailsCopy.detailsInMemoryStorageLimit = this.detailsInMemoryStorageLimit;
         aionContractDetailsCopy.setCodes(getDeepCopyOfCodes());
-        aionContractDetailsCopy.setDirty(this.isDirty());
-        aionContractDetailsCopy.setDeleted(this.isDeleted());
         aionContractDetailsCopy.address = new Address(this.address.toBytes());
-        aionContractDetailsCopy.rlpEncoded =
-                (this.rlpEncoded == null)
-                        ? null
-                        : Arrays.copyOf(this.rlpEncoded, this.rlpEncoded.length);
+
+        aionContractDetailsCopy.internalState =
+                new InternalState(
+                        this.isDirty(),
+                        this.isDeleted(),
+                        (this.getEncoded() == null)
+                                ? null
+                                : Arrays.copyOf(this.getEncoded(), this.getEncoded().length));
         aionContractDetailsCopy.storageTrie =
                 (this.storageTrie == null) ? null : this.storageTrie.copy();
         return aionContractDetailsCopy;
