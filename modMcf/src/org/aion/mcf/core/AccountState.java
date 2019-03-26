@@ -10,7 +10,7 @@ import org.aion.rlp.RLPList;
 import org.aion.util.conversions.Hex;
 
 /** Account state. */
-public class AccountState extends AbstractState {
+public class AccountState {
 
     /**
      * A value equal to the number of transactions sent from this address, or, in the case of
@@ -40,6 +40,8 @@ public class AccountState extends AbstractState {
      * their corresponding hashes for later retrieval
      */
     private byte[] codeHash = EMPTY_DATA_HASH;
+
+    private InternalState state = new InternalState();
 
     /** Constructs a new object with ZERO initial transactions and ZERO Wei balance. */
     public AccountState() {
@@ -71,8 +73,7 @@ public class AccountState extends AbstractState {
         this.stateRoot = previous.getStateRoot();
 
         // maintains the state of the copied object
-        this.dirty = previous.isDirty();
-        this.deleted = previous.isDeleted();
+        this.state = new InternalState(previous.state.isDirty(), previous.state.isDeleted());
     }
 
     /**
@@ -81,9 +82,9 @@ public class AccountState extends AbstractState {
      * @param rlpData the RLP representation of the state of an account
      */
     public AccountState(byte[] rlpData) {
-        rlpEncoded = rlpData;
+        state.setEncoding(rlpData);
 
-        RLPList items = (RLPList) RLP.decode2(rlpEncoded).get(0);
+        RLPList items = (RLPList) RLP.decode2(state.getEncoding()).get(0);
 
         byte[] nonceValue = items.get(0).getRLPData();
         nonce = nonceValue == null ? BigInteger.ZERO : new BigInteger(1, nonceValue);
@@ -120,7 +121,7 @@ public class AccountState extends AbstractState {
     public BigInteger setNonce(BigInteger nonce) {
         if (!nonce.equals(this.nonce)) {
             this.nonce = nonce;
-            makeDirty();
+            state.markDirty();
         }
         return this.nonce;
     }
@@ -144,7 +145,7 @@ public class AccountState extends AbstractState {
      */
     public void setStateRoot(byte[] stateRoot) {
         this.stateRoot = stateRoot;
-        makeDirty();
+        state.markDirty();
     }
 
     /**
@@ -156,7 +157,7 @@ public class AccountState extends AbstractState {
      */
     public BigInteger incrementNonce() {
         nonce = nonce.add(BigInteger.ONE);
-        makeDirty();
+        state.markDirty();
         return nonce;
     }
 
@@ -186,14 +187,12 @@ public class AccountState extends AbstractState {
     public void setCodeHash(byte[] codeHash) {
         if (!isInitialized()) {
             this.codeHash = codeHash;
-            makeDirty();
+            state.markDirty();
         }
     }
 
     /**
      * Flag indicating whether the contract code has been initialized.
-     *
-     * <p>
      *
      * @apiNote Used to ensure that initialized contracts cannot modify the code hash.
      */
@@ -222,7 +221,7 @@ public class AccountState extends AbstractState {
     public void setBalance(BigInteger balance) {
         if (!balance.equals(this.balance)) {
             this.balance = balance;
-            makeDirty();
+            state.markDirty();
         }
     }
 
@@ -238,7 +237,7 @@ public class AccountState extends AbstractState {
         // TODO: ensure we verify that we don't end up subtracting more than the
         // total balance
         if (value.signum() != 0) {
-            makeDirty();
+            state.markDirty();
             this.balance = balance.add(value);
         }
         return this.balance;
@@ -256,7 +255,7 @@ public class AccountState extends AbstractState {
         // TODO: ensure we verify that we don't end up subtracting more than the
         // total balance
         if (value.signum() != 0) {
-            makeDirty();
+            state.markDirty();
             this.balance = balance.subtract(value);
         }
         return this.balance;
@@ -271,32 +270,65 @@ public class AccountState extends AbstractState {
         AccountState accountStateCopy = new AccountState();
         accountStateCopy.balance = this.balance;
         accountStateCopy.nonce = this.nonce;
-        accountStateCopy.dirty = this.dirty;
-        accountStateCopy.deleted = this.deleted;
         accountStateCopy.codeHash =
                 (this.codeHash == null) ? null : Arrays.copyOf(this.codeHash, this.codeHash.length);
         accountStateCopy.stateRoot =
                 (this.stateRoot == null)
                         ? null
                         : Arrays.copyOf(this.stateRoot, this.stateRoot.length);
-        accountStateCopy.rlpEncoded =
-                (this.rlpEncoded == null)
-                        ? null
-                        : Arrays.copyOf(this.rlpEncoded, this.rlpEncoded.length);
+        accountStateCopy.state =
+                new InternalState(
+                        this.state.isDirty(),
+                        this.state.isDeleted(),
+                        (this.state.getEncoding() == null
+                                ? null
+                                : Arrays.copyOf(
+                                        this.state.getEncoding(),
+                                        this.state.getEncoding().length)));
         return accountStateCopy;
     }
 
     public byte[] getEncoded() {
-        if (rlpEncoded == null) {
+        if (state.getEncoding() == null) {
             byte[] nonce = RLP.encodeBigInteger(this.nonce);
             byte[] balance = RLP.encodeBigInteger(this.balance);
             byte[] stateRoot = RLP.encodeElement(this.stateRoot);
             byte[] codeHash = RLP.encodeElement(this.codeHash);
-            this.rlpEncoded = RLP.encodeList(nonce, balance, stateRoot, codeHash);
+            state.setEncoding(RLP.encodeList(nonce, balance, stateRoot, codeHash));
         }
-        return rlpEncoded;
+        return state.getEncoding();
     }
 
+    /**
+     * Checks whether the state of the account has been changed during execution.
+     *
+     * <p>The dirty status is set internally by the object when its stored values have been
+     * modified.
+     *
+     * @return {@code true} if the account state has been modified (including if the account is
+     *     newly created), {@code false} if the account state is the same as in the database
+     */
+    public boolean isDirty() {
+        return state.isDirty();
+    }
+
+    /**
+     * Checks if the state of the account has been deleted.
+     *
+     * @return {@code true} if the account was deleted, {@code false} otherwise
+     */
+    public boolean isDeleted() {
+        return state.isDeleted();
+    }
+
+    /**
+     * Checks if the account state stores any meaningful information.
+     *
+     * @return {@code true} if the account state is empty, {@code false} otherwise
+     * @apiNote Empty accounts should not be stored in the database.
+     * @implNote Empty accounts do not have associated code (or by extension storage), i.e. cannot
+     *     be contract accounts.
+     */
     public boolean isEmpty() {
         return Arrays.equals(codeHash, EMPTY_DATA_HASH)
                 && BigInteger.ZERO.equals(balance)
@@ -315,5 +347,15 @@ public class AccountState extends AbstractState {
                 + "\n"
                 + "  Code Hash: "
                 + Hex.toHexString(this.getCodeHash());
+    }
+
+    /**
+     * Deletes the current account.
+     *
+     * @apiNote Once the account has been deleted (by setting the flag to {@code true}) <b>it cannot
+     *     be recovered</b>.
+     */
+    public void delete() {
+        state.markDeleted();
     }
 }

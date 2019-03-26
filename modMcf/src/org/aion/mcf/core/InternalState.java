@@ -1,20 +1,31 @@
 package org.aion.mcf.core;
 
 /**
- * Common functionality for externally owned accounts {@link AccountState} and contracts (to be
- * added soon).
+ * Functionality for recording the state of a account or contract.
  *
  * @author Alexandra Roatis
  */
-public abstract class AbstractState {
+public class InternalState {
 
     /** The RLP encoding of this account state. */
-    protected byte[] rlpEncoded = null;
+    private byte[] rlpEncoding = null;
 
     /** Flag indicating whether the account has been deleted. */
-    protected boolean deleted = false;
+    private boolean deleted = false;
     /** Flag indicating whether the state of the account has been changed. */
-    protected boolean dirty = false;
+    private boolean dirty = false;
+
+    public InternalState() {}
+
+    public InternalState(boolean dirty, boolean deleted) {
+        this.dirty = dirty;
+        this.deleted = deleted;
+    }
+
+    public InternalState(boolean dirty, boolean deleted, byte[] rlpEncoding) {
+        this(dirty, deleted);
+        this.rlpEncoding = rlpEncoding;
+    }
 
     /**
      * Checks whether the state of the account has been changed during execution.
@@ -38,20 +49,9 @@ public abstract class AbstractState {
      * @implNote Method called internally by the account object when its state has been modified.
      *     Resets the stored RLP encoding.
      */
-    protected void makeDirty() {
-        this.rlpEncoded = null;
+    public void markDirty() {
+        this.rlpEncoding = null;
         this.dirty = true;
-    }
-
-    /**
-     * Deletes the current account.
-     *
-     * @apiNote Once the account has been deleted (by setting the flag to {@code true}) <b>it cannot
-     *     be recovered</b>.
-     */
-    public void delete() {
-        this.deleted = true;
-        makeDirty();
     }
 
     /**
@@ -63,6 +63,12 @@ public abstract class AbstractState {
         return this.deleted;
     }
 
+    /** Marks the state as deleted and dirty. */
+    public void markDeleted() {
+        this.deleted = true;
+        markDirty();
+    }
+
     /**
      * Retrieves the RLP encoding of this object.
      *
@@ -70,15 +76,16 @@ public abstract class AbstractState {
      * @implNote For performance reasons, this encoding is stored when available and recomputed only
      *     if the object has been modified during execution.
      */
-    public abstract byte[] getEncoded();
+    public byte[] getEncoding() {
+        return rlpEncoding;
+    }
 
     /**
-     * Checks if the account state stores any meaningful information.
+     * Stores the RLP encoding of the tracked object.
      *
-     * @return {@code true} if the account state is empty, {@code false} otherwise
-     * @apiNote Empty accounts should not be stored in the database.
-     * @implNote Empty accounts do not have associated code (or by extension storage), i.e. cannot
-     *     be contract accounts.
+     * @param rlpEncoding a {@code byte} array representing the RLP encoding of the object state
      */
-    public abstract boolean isEmpty();
+    public void setEncoding(byte[] rlpEncoding) {
+        this.rlpEncoding = rlpEncoding;
+    }
 }
