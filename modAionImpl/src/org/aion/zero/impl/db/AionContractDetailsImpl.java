@@ -112,6 +112,28 @@ public class AionContractDetailsImpl extends AbstractContractDetails {
                 : new ByteArrayWrapper(RLP.decode2(data).get(0).getRLPData());
     }
 
+    public byte getVmType() {
+        // TODO: is this sufficient?
+        return vmType;
+    }
+
+    @Override
+    public byte[] getObjectGraph() {
+        // TODO
+        return EMPTY_BYTE_ARRAY;
+    }
+
+    @Override
+    public void setObjectGraph(byte[] graph) {
+        // TODO
+        this.setDirty(true);
+    }
+
+    @Override
+    public void setObjectGraphSource(ByteArrayKeyValueStore objectGraphSource) {
+        // TODO
+    }
+
     /**
      * Returns the storage hash.
      *
@@ -119,7 +141,7 @@ public class AionContractDetailsImpl extends AbstractContractDetails {
      */
     @Override
     public byte[] getStorageHash() {
-        if (vmType == TransactionTypes.AVM_CREATE_CODE) {
+        if (vmType == TransactionTypes.AVM_CREATE_CODE && false) { // check disabled
             // todo: store the result
             byte[] a = storageTrie.getRootHash();
             byte[] b = objectGraphHash;

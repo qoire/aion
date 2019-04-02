@@ -27,6 +27,7 @@ import org.aion.mcf.trie.SecureTrie;
 import org.aion.mcf.trie.Trie;
 import org.aion.mcf.trie.TrieImpl;
 import org.aion.mcf.trie.TrieNodeResult;
+import org.aion.mcf.tx.TransactionTypes;
 import org.aion.p2p.V1Constants;
 import org.aion.types.Address;
 import org.aion.types.ByteArrayWrapper;
@@ -35,7 +36,6 @@ import org.aion.zero.impl.config.CfgAion;
 import org.aion.zero.impl.sync.DatabaseType;
 import org.aion.zero.impl.types.AionBlock;
 import org.aion.zero.impl.types.AionTxInfo;
-import org.aion.mcf.tx.TransactionTypes;
 import org.aion.zero.types.A0BlockHeader;
 import org.aion.zero.types.AionTransaction;
 import org.aion.zero.types.AionTxReceipt;
@@ -374,6 +374,18 @@ public class AionRepositoryImpl
 
         ContractDetails details = getContractDetails(address);
         return (details == null) ? EMPTY_BYTE_ARRAY : details.getCode(codeHash);
+    }
+
+    @Override
+    public byte getVmType(Address contract) {
+        ContractDetails details = getContractDetails(contract);
+        return (details == null) ? TransactionTypes.DEFAULT : details.getVmType();
+    }
+
+    @Override
+    public byte[] getObjectGraph(Address contract) {
+        ContractDetails details = getContractDetails(contract);
+        return (details == null) ? EMPTY_BYTE_ARRAY : details.getObjectGraph();
     }
 
     @Override
@@ -927,8 +939,8 @@ public class AionRepositoryImpl
     public byte getVMUsed(Address contract) {
         ContractInformation ci = getIndexedContractInformation(contract);
         if (ci == null) {
-            // defaults to FastVM for backwards compatibility
-            return TransactionTypes.FVM_CREATE_CODE;
+            // signals that the value is not set
+            return TransactionTypes.DEFAULT;
         } else {
             return ci.getVmUsed();
         }

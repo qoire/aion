@@ -4,6 +4,7 @@ import java.math.BigInteger;
 import org.aion.interfaces.db.RepositoryCache;
 import org.aion.mcf.core.AccountState;
 import org.aion.mcf.db.IBlockStoreBase;
+import org.aion.mcf.tx.TransactionTypes;
 import org.aion.mcf.valid.TransactionTypeRule;
 import org.aion.mcf.valid.TxNrgRule;
 import org.aion.types.Address;
@@ -70,6 +71,16 @@ public class KernelInterfaceForFastVM implements KernelInterface {
     @Override
     public byte[] getCode(Address address) {
         return this.repositoryCache.getCode(address);
+    }
+
+    @Override
+    public void putObjectGraph(Address contract, byte[] graph) {
+        throw new UnsupportedOperationException("The FVM does not use an object graph.");
+    }
+
+    @Override
+    public byte[] getObjectGraph(Address contract) {
+        throw new UnsupportedOperationException("The FVM does not use an object graph.");
     }
 
     @Override
@@ -180,7 +191,20 @@ public class KernelInterfaceForFastVM implements KernelInterface {
 
     @Override
     public boolean destinationAddressIsSafeForThisVM(Address address) {
-        return TransactionTypeRule.isValidFVMContractDeployment(repositoryCache.getVMUsed(address));
+        return TransactionTypeRule.isValidFVMContractDeployment(getVmType(address));
+    }
+
+    private byte getVmType(Address destination) {
+        byte storedVmType = repositoryCache.getVMUsed(destination);
+
+        // DEFAULT is returned when there was no contract information stored
+        if (storedVmType == TransactionTypes.DEFAULT) {
+            // will load contract into memory otherwise leading to consensus issues
+            RepositoryCache track = repositoryCache.startTracking();
+            return track.getVmType(destination);
+        } else {
+            return storedVmType;
+        }
     }
 
     /**

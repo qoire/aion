@@ -2,8 +2,10 @@ package org.aion.vm;
 
 import java.math.BigInteger;
 import org.aion.interfaces.db.RepositoryCache;
+import org.aion.interfaces.tx.Transaction;
 import org.aion.mcf.core.AccountState;
 import org.aion.mcf.db.IBlockStoreBase;
+import org.aion.mcf.tx.TransactionTypes;
 import org.aion.mcf.valid.TransactionTypeRule;
 import org.aion.mcf.valid.TxNrgRule;
 import org.aion.mcf.vm.types.KernelInterfaceForFastVM;
@@ -72,6 +74,16 @@ public class KernelInterfaceForAVM implements KernelInterface {
     @Override
     public byte[] getCode(Address address) {
         return this.repositoryCache.getCode(address);
+    }
+
+    @Override
+    public void putObjectGraph(Address contract, byte[] graph) {
+        this.repositoryCache.saveObjectGraph(contract, graph);
+    }
+
+    @Override
+    public byte[] getObjectGraph(Address contract) {
+        return this.repositoryCache.getObjectGraph(contract);
     }
 
     @Override
@@ -182,6 +194,19 @@ public class KernelInterfaceForAVM implements KernelInterface {
         }
 
         // Otherwise, it must be an Avm contract address.
-        return TransactionTypeRule.isValidAVMContractDeployment(repositoryCache.getVMUsed(address));
+        return TransactionTypeRule.isValidAVMContractDeployment(getVmType(address));
+    }
+
+    private byte getVmType(Address destination) {
+        byte storedVmType = repositoryCache.getVMUsed(destination);
+
+        // DEFAULT is returned when there was no contract information stored
+        if (storedVmType == TransactionTypes.DEFAULT) {
+            // will load contract into memory otherwise leading to consensus issues
+            RepositoryCache track = repositoryCache.startTracking();
+            return track.getVmType(destination);
+        } else {
+            return storedVmType;
+        }
     }
 }

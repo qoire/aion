@@ -76,10 +76,6 @@ public abstract class AbstractContractDetails implements ContractDetails {
         this.codes.putAll(codes);
     }
 
-    public byte getVmType() {
-        return vmType;
-    }
-
     public void setVmType(byte vmType) {
         this.vmType = vmType;
     }

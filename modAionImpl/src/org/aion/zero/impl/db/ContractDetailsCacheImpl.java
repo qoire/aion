@@ -7,6 +7,7 @@ import java.util.Map.Entry;
 import java.util.Objects;
 import org.aion.interfaces.db.ByteArrayKeyValueStore;
 import org.aion.interfaces.db.ContractDetails;
+import org.aion.mcf.tx.TransactionTypes;
 import org.aion.types.Address;
 import org.aion.types.ByteArrayWrapper;
 
@@ -96,6 +97,26 @@ public class ContractDetailsCacheImpl extends AbstractContractDetails {
         return value;
     }
 
+    public byte getVmType() {
+        if (vmType == TransactionTypes.DEFAULT && origContract != null) {
+            vmType = origContract.getVmType();
+        }
+        return vmType;
+    }
+
+    @Override
+    public byte[] getObjectGraph() {
+        return new byte[0];
+    }
+
+    @Override
+    public void setObjectGraph(byte[] graph) {}
+
+    @Override
+    public void setObjectGraphSource(ByteArrayKeyValueStore objectGraphSource) {
+        // TODO
+    }
+
     /**
      * Returns the storage hash.
      *
@@ -103,6 +124,7 @@ public class ContractDetailsCacheImpl extends AbstractContractDetails {
      */
     @Override
     public byte[] getStorageHash() {
+        // TODO: apply changes resulting from AVM switch
         return origContract == null ? null : origContract.getStorageHash();
     }
 

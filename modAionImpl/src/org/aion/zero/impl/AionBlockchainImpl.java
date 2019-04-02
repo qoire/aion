@@ -44,10 +44,12 @@ import org.aion.mcf.manager.ChainStatistics;
 import org.aion.mcf.trie.Trie;
 import org.aion.mcf.trie.TrieImpl;
 import org.aion.mcf.trie.TrieNodeResult;
+import org.aion.mcf.tx.TransactionTypes;
 import org.aion.mcf.types.BlockIdentifierImpl;
 import org.aion.mcf.valid.BlockHeaderValidator;
 import org.aion.mcf.valid.GrandParentBlockHeaderValidator;
 import org.aion.mcf.valid.ParentBlockHeaderValidator;
+import org.aion.mcf.valid.TransactionTypeRule;
 import org.aion.mcf.vm.types.Bloom;
 import org.aion.rlp.RLP;
 import org.aion.types.Address;
@@ -75,9 +77,7 @@ import org.aion.zero.impl.types.AionBlockSummary;
 import org.aion.zero.impl.types.AionTxInfo;
 import org.aion.zero.impl.types.RetValidPreBlock;
 import org.aion.zero.impl.valid.TXValidator;
-import org.aion.mcf.valid.TransactionTypeRule;
 import org.aion.zero.impl.valid.TransactionTypeValidator;
-import org.aion.mcf.tx.TransactionTypes;
 import org.aion.zero.types.A0BlockHeader;
 import org.aion.zero.types.AionTransaction;
 import org.aion.zero.types.AionTxExecSummary;
@@ -1008,10 +1008,10 @@ public class AionBlockchainImpl implements IAionBlockchain {
         // update corresponding account with the new balance
         track.flush();
 
-        // save contract creation data
+        // save contract creation data to index database
         for (AionTxReceipt receipt : receipts) {
             AionTransaction tx = receipt.getTransaction();
-            if (tx.isContractCreationTransaction()) {
+            if (tx.isContractCreationTransaction() && receipt.isSuccessful()) {
                 repository.saveIndexedContractInformation(
                         tx.getContractAddress(),
                         block.getNumber(),
@@ -1342,6 +1342,18 @@ public class AionBlockchainImpl implements IAionBlockchain {
             for (AionTxExecSummary summary : executionSummaries) {
                 receipts.add(summary.getReceipt());
                 summaries.add(summary);
+
+                // save contract creation data to contract details
+                AionTxReceipt receipt = summary.getReceipt();
+                AionTransaction tx = receipt.getTransaction();
+                if (tx.isContractCreationTransaction() && receipt.isSuccessful()) {
+                    track.saveVmType(
+                            tx.getContractAddress(),
+                            TransactionTypeRule.isValidAVMContractDeployment(tx.getTargetVM())
+                                    ? TransactionTypes.AVM_CREATE_CODE
+                                    // FVM contracts do not always have the correct type
+                                    : TransactionTypes.FVM_CREATE_CODE);
+                }
             }
         }
         Map<Address, BigInteger> rewards = addReward(block);
