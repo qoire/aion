@@ -1,16 +1,18 @@
 package org.aion.zero.impl.db;
 
-import static org.aion.crypto.HashUtil.EMPTY_LIST_HASH;
+import static org.aion.crypto.HashUtil.EMPTY_DATA_HASH;
 import static org.aion.crypto.HashUtil.EMPTY_TRIE_HASH;
 import static org.aion.crypto.HashUtil.h256;
 import static org.aion.types.ByteArrayWrapper.wrap;
 import static org.aion.util.bytes.ByteUtil.EMPTY_BYTE_ARRAY;
 
+import com.google.common.annotations.VisibleForTesting;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Objects;
+import java.util.Optional;
 import org.aion.interfaces.db.ByteArrayKeyValueStore;
 import org.aion.interfaces.db.ContractDetails;
 import org.aion.mcf.ds.XorDataSource;
@@ -26,6 +28,7 @@ import org.aion.types.ByteArrayWrapper;
 public class AionContractDetailsImpl extends AbstractContractDetails {
 
     private ByteArrayKeyValueStore dataSource;
+    private ByteArrayKeyValueStore objectGraphSource = null;
 
     private byte[] rlpEncoded;
 
@@ -35,8 +38,9 @@ public class AionContractDetailsImpl extends AbstractContractDetails {
 
     public boolean externalStorage;
     private ByteArrayKeyValueStore externalStorageDataSource;
+    private ByteArrayKeyValueStore contractObjectGraphSource = null;
 
-    protected byte[] objectGraphHash = EMPTY_LIST_HASH;
+    private byte[] objectGraphHash = EMPTY_DATA_HASH;
 
     public AionContractDetailsImpl() {}
 
@@ -113,26 +117,37 @@ public class AionContractDetailsImpl extends AbstractContractDetails {
     }
 
     public byte getVmType() {
-        // TODO: is this sufficient?
         return vmType;
     }
 
     @Override
     public byte[] getObjectGraph() {
-        // TODO
-        return EMPTY_BYTE_ARRAY;
+        if (objectGraph == null) {
+            if (java.util.Arrays.equals(objectGraphHash, EMPTY_DATA_HASH)) {
+                return EMPTY_BYTE_ARRAY;
+            } else {
+                // note: the enforced use of optional is rather cumbersome here
+                Optional<byte[]> dbVal = getContractObjectGraphSource().get(objectGraphHash);
+                objectGraph = dbVal.isPresent() ? dbVal.get() : null;
+            }
+        }
+
+        return objectGraph == null ? EMPTY_BYTE_ARRAY : objectGraph;
     }
 
     @Override
     public void setObjectGraph(byte[] graph) {
-        // TODO
+        Objects.requireNonNull(graph);
+
+        this.objectGraph = graph;
+        this.objectGraphHash = h256(objectGraph);
+
         this.setDirty(true);
+        this.rlpEncoded = null;
     }
 
-    @Override
-    public void setObjectGraphSource(ByteArrayKeyValueStore objectGraphSource) {
-        // TODO
-    }
+    // TODO: use until the AVM impl is added
+    private final boolean enableObjectGraph = false;
 
     /**
      * Returns the storage hash.
@@ -141,17 +156,20 @@ public class AionContractDetailsImpl extends AbstractContractDetails {
      */
     @Override
     public byte[] getStorageHash() {
-        if (vmType == TransactionTypes.AVM_CREATE_CODE && false) { // check disabled
-            // todo: store the result
-            byte[] a = storageTrie.getRootHash();
-            byte[] b = objectGraphHash;
-            byte[] c = new byte[a.length + b.length];
-            System.arraycopy(a, 0, c, 0, a.length);
-            System.arraycopy(b, 0, c, a.length, b.length);
-            return h256(c);
+        if (enableObjectGraph && vmType == TransactionTypes.AVM_CREATE_CODE) {
+            return computeAvmStorageHash();
         } else {
             return storageTrie.getRootHash();
         }
+    }
+
+    private byte[] computeAvmStorageHash() {
+        byte[] a = storageTrie.getRootHash();
+        byte[] b = getObjectGraph();
+        byte[] c = new byte[a.length + b.length];
+        System.arraycopy(a, 0, c, 0, a.length);
+        System.arraycopy(b, 0, c, a.length, b.length);
+        return h256(c);
     }
 
     /**
@@ -437,6 +455,7 @@ public class AionContractDetailsImpl extends AbstractContractDetails {
     /** Syncs the storage trie. */
     @Override
     public void syncStorage() {
+
         if (externalStorage) {
             storageTrie.sync();
         }
@@ -449,6 +468,11 @@ public class AionContractDetailsImpl extends AbstractContractDetails {
      */
     public void setDataSource(ByteArrayKeyValueStore dataSource) {
         this.dataSource = dataSource;
+    }
+
+    @Override
+    public void setObjectGraphSource(ByteArrayKeyValueStore objectGraphSource) {
+        this.objectGraphSource = objectGraphSource;
     }
 
     /**
@@ -466,11 +490,30 @@ public class AionContractDetailsImpl extends AbstractContractDetails {
     }
 
     /**
+     * Returns the data source specific to the current contract.
+     *
+     * @return the data source specific to the current contract.
+     */
+    private ByteArrayKeyValueStore getContractObjectGraphSource() {
+        if (contractObjectGraphSource == null) {
+            contractObjectGraphSource =
+                    new XorDataSource(
+                            objectGraphSource,
+                            h256(("details-graph/" + address.toString()).getBytes()));
+        }
+        return contractObjectGraphSource;
+    }
+
+    /**
      * Sets the external storage data source to dataSource.
      *
      * @param dataSource The new data source.
+     * @implNote The tests are taking a shortcut here in bypassing the XorDataSource created by
+     *     {@link #getExternalStorageDataSource()}. Do not use this method in production.
      */
-    public void setExternalStorageDataSource(ByteArrayKeyValueStore dataSource) {
+    @VisibleForTesting
+    void setExternalStorageDataSource(ByteArrayKeyValueStore dataSource) {
+        // TODO: regarding the node above: the tests should be updated and the method removed
         this.externalStorageDataSource = dataSource;
         this.externalStorage = true;
         this.storageTrie = new SecureTrie(getExternalStorageDataSource());
@@ -494,9 +537,26 @@ public class AionContractDetailsImpl extends AbstractContractDetails {
 
         AionContractDetailsImpl details =
                 new AionContractDetailsImpl(this.address, snapStorage, getCodes());
+
+        // vm information
+        details.vmType = this.vmType;
+
+        // storage information
         details.externalStorage = this.externalStorage;
         details.externalStorageDataSource = this.externalStorageDataSource;
         details.dataSource = dataSource;
+
+        // object graph information
+        details.objectGraphSource = this.objectGraphSource;
+        details.contractObjectGraphSource = this.contractObjectGraphSource;
+        details.objectGraph =
+                objectGraph == null
+                        ? null
+                        : Arrays.copyOf(this.objectGraph, this.objectGraph.length);
+        details.objectGraphHash =
+                Arrays.equals(objectGraphHash, EMPTY_DATA_HASH)
+                        ? EMPTY_DATA_HASH
+                        : Arrays.copyOf(this.objectGraphHash, this.objectGraphHash.length);
 
         return details;
     }
@@ -518,9 +578,27 @@ public class AionContractDetailsImpl extends AbstractContractDetails {
     @Override
     public AionContractDetailsImpl copy() {
         AionContractDetailsImpl aionContractDetailsCopy = new AionContractDetailsImpl();
+
+        // vm information
+        aionContractDetailsCopy.vmType = this.vmType;
+
+        // storage information
         aionContractDetailsCopy.dataSource = this.dataSource;
         aionContractDetailsCopy.externalStorageDataSource = this.externalStorageDataSource;
         aionContractDetailsCopy.externalStorage = this.externalStorage;
+
+        // object graph information
+        aionContractDetailsCopy.objectGraphSource = this.objectGraphSource;
+        aionContractDetailsCopy.contractObjectGraphSource = this.contractObjectGraphSource;
+        aionContractDetailsCopy.objectGraph =
+                objectGraph == null
+                        ? null
+                        : Arrays.copyOf(this.objectGraph, this.objectGraph.length);
+        aionContractDetailsCopy.objectGraphHash =
+                Arrays.equals(objectGraphHash, EMPTY_DATA_HASH)
+                        ? EMPTY_DATA_HASH
+                        : Arrays.copyOf(this.objectGraphHash, this.objectGraphHash.length);
+
         aionContractDetailsCopy.prune = this.prune;
         aionContractDetailsCopy.detailsInMemoryStorageLimit = this.detailsInMemoryStorageLimit;
         aionContractDetailsCopy.setCodes(getDeepCopyOfCodes());

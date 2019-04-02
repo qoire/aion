@@ -661,6 +661,17 @@ public class AionRepositoryImpl
             }
 
             try {
+                if (contractIndexDatabase != null) {
+                    contractIndexDatabase.close();
+                    LOGGEN.info("contractIndexDatabase store closed.");
+                    contractIndexDatabase = null;
+                }
+            } catch (Exception e) {
+                LOGGEN.error(
+                        "Exception occurred while closing the pendingTxCacheDatabase store.", e);
+            }
+
+            try {
                 if (stateDatabase != null) {
                     stateDatabase.close();
                     LOGGEN.info("State database closed.");
