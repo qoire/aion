@@ -123,6 +123,11 @@ public class AionContractDetailsImpl extends AbstractContractDetails {
     @Override
     public byte[] getObjectGraph() {
         if (objectGraph == null) {
+            // check storage if not already set
+            if (java.util.Arrays.equals(objectGraphHash, EMPTY_DATA_HASH)) {
+                objectGraphHash = getGraphHashFromDb();
+            }
+
             if (java.util.Arrays.equals(objectGraphHash, EMPTY_DATA_HASH)) {
                 return EMPTY_BYTE_ARRAY;
             } else {
@@ -131,8 +136,13 @@ public class AionContractDetailsImpl extends AbstractContractDetails {
                 objectGraph = dbVal.isPresent() ? dbVal.get() : null;
             }
         }
+        // TODO
 
         return objectGraph == null ? EMPTY_BYTE_ARRAY : objectGraph;
+    }
+
+    private byte[] getGraphHashFromDb() {
+        return null; //todo
     }
 
     @Override
@@ -164,6 +174,7 @@ public class AionContractDetailsImpl extends AbstractContractDetails {
     }
 
     private byte[] computeAvmStorageHash() {
+        // todo graph
         byte[] a = storageTrie.getRootHash();
         byte[] b = getObjectGraph();
         byte[] c = new byte[a.length + b.length];
@@ -455,6 +466,15 @@ public class AionContractDetailsImpl extends AbstractContractDetails {
     /** Syncs the storage trie. */
     @Override
     public void syncStorage() {
+        if (vmType == TransactionTypes.AVM_CREATE_CODE) {
+            getContractObjectGraphSource().put(objectGraphHash, objectGraph);
+            getContractObjectGraphSource()
+                    .put(
+                            computeAvmStorageHash(),
+                            RLP.encodeList(
+                                    RLP.encodeElement(storageTrie.getRootHash()),
+                                    RLP.encodeElement(objectGraphHash)));
+        }
 
         if (externalStorage) {
             storageTrie.sync();
@@ -495,6 +515,7 @@ public class AionContractDetailsImpl extends AbstractContractDetails {
      * @return the data source specific to the current contract.
      */
     private ByteArrayKeyValueStore getContractObjectGraphSource() {
+        // todo graph
         if (contractObjectGraphSource == null) {
             contractObjectGraphSource =
                     new XorDataSource(
