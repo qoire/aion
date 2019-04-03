@@ -23,6 +23,8 @@ public abstract class AbstractContractDetails implements ContractDetails {
     protected int detailsInMemoryStorageLimit;
 
     private Map<ByteArrayWrapper, byte[]> codes = new HashMap<>();
+    // classes extending this rely on this value starting off as null
+    protected byte[] objectGraph = null;
 
     // using the default transaction type to specify undefined VM
     protected byte vmType = TransactionTypes.DEFAULT;
