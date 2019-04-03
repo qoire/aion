@@ -1,12 +1,13 @@
 package org.aion.mcf.ds;
 
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.Iterator;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import org.aion.interfaces.db.ByteArrayKeyValueStore;
-import org.aion.types.ByteArrayWrapper;
 import org.aion.util.bytes.ByteUtil;
 
 public class XorDataSource implements ByteArrayKeyValueStore {
@@ -79,12 +80,6 @@ public class XorDataSource implements ByteArrayKeyValueStore {
         source.putBatch(converted);
     }
 
-    public void updateBatch(Map<ByteArrayWrapper, byte[]> rows, boolean erasure) {
-        // not supported
-        throw new UnsupportedOperationException(
-                "ByteArrayWrapper map not supported in XorDataSource.updateBatch yet");
-    }
-
     @Override
     public void close() throws Exception {
         source.close();
@@ -92,7 +87,11 @@ public class XorDataSource implements ByteArrayKeyValueStore {
 
     @Override
     public void deleteBatch(Collection<byte[]> keys) {
-        // TODO Auto-generated method stub
+        List<byte[]> converted = new ArrayList<>(keys.size());
+        for (byte[] key : keys) {
+            converted.add(convertKey(key));
+        }
+        source.deleteBatch(converted);
     }
 
     @Override
@@ -102,22 +101,21 @@ public class XorDataSource implements ByteArrayKeyValueStore {
 
     @Override
     public boolean isEmpty() {
-        // TODO Auto-generated method stub
-        return false;
+        return source.isEmpty();
     }
 
     @Override
     public void putToBatch(byte[] key, byte[] value) {
-        throw new UnsupportedOperationException();
+        source.putToBatch(convertKey(key), value);
     }
 
     @Override
     public void deleteInBatch(byte[] key) {
-        throw new UnsupportedOperationException();
+        source.deleteInBatch(convertKey(key));
     }
 
     @Override
     public void commitBatch() {
-        throw new UnsupportedOperationException();
+        source.commitBatch();
     }
 }
