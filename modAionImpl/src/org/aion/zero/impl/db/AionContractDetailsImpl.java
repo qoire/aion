@@ -26,6 +26,7 @@ import org.aion.types.Address;
 import org.aion.types.ByteArrayWrapper;
 
 public class AionContractDetailsImpl extends AbstractContractDetails {
+    private static final int HASH_SIZE = 32;
 
     private ByteArrayKeyValueStore dataSource;
     private ByteArrayKeyValueStore objectGraphSource = null;
@@ -41,6 +42,7 @@ public class AionContractDetailsImpl extends AbstractContractDetails {
     private ByteArrayKeyValueStore contractObjectGraphSource = null;
 
     private byte[] objectGraphHash = EMPTY_DATA_HASH;
+    private byte[] concatenatedStorageHash = EMPTY_DATA_HASH;
 
     public AionContractDetailsImpl() {}
 
@@ -123,6 +125,7 @@ public class AionContractDetailsImpl extends AbstractContractDetails {
     @Override
     public byte[] getObjectGraph() {
         if (objectGraph == null) {
+            // the object graph was not stored yet
             if (java.util.Arrays.equals(objectGraphHash, EMPTY_DATA_HASH)) {
                 return EMPTY_BYTE_ARRAY;
             } else {
@@ -131,7 +134,6 @@ public class AionContractDetailsImpl extends AbstractContractDetails {
                 objectGraph = dbVal.isPresent() ? dbVal.get() : null;
             }
         }
-
         return objectGraph == null ? EMPTY_BYTE_ARRAY : objectGraph;
     }
 
@@ -164,12 +166,12 @@ public class AionContractDetailsImpl extends AbstractContractDetails {
     }
 
     private byte[] computeAvmStorageHash() {
-        byte[] a = storageTrie.getRootHash();
-        byte[] b = getObjectGraph();
-        byte[] c = new byte[a.length + b.length];
-        System.arraycopy(a, 0, c, 0, a.length);
-        System.arraycopy(b, 0, c, a.length, b.length);
-        return h256(c);
+        byte[] storageRoot = storageTrie.getRootHash();
+        byte[] graphHash = getObjectGraph();
+        byte[] concatenated = new byte[storageRoot.length + graphHash.length];
+        System.arraycopy(storageRoot, 0, concatenated, 0, storageRoot.length);
+        System.arraycopy(graphHash, 0, concatenated, storageRoot.length, graphHash.length);
+        return h256(concatenated);
     }
 
     /**
@@ -197,7 +199,7 @@ public class AionContractDetailsImpl extends AbstractContractDetails {
 
         if (rlpList.size() == 5) {
             // compatible with old encoding
-            decodeFvmPreFork(rlpList, fastCheck);
+            decodeOldFvmEncoding(rlpList);
 
             // only FVM contracts used the old encoding
             vmType = TransactionTypes.FVM_CREATE_CODE;
@@ -207,7 +209,7 @@ public class AionContractDetailsImpl extends AbstractContractDetails {
             getEncoded();
         } else {
             // compatible with new encoding
-            decodePostFork(rlpList, fastCheck);
+            decodeNewEncoding(rlpList);
 
             // compatible with new encoding that differentiates encoding based on VM used
             this.rlpEncoded = rlpCode;
@@ -220,16 +222,11 @@ public class AionContractDetailsImpl extends AbstractContractDetails {
      *
      * <p>Only FVM contracts used this encoding on the <b>mainnet</b> and <b>mastery</b> networks.
      */
-    public void decodeFvmPreFork(RLPList rlpList, boolean fastCheck) {
+    public void decodeOldFvmEncoding(RLPList rlpList) {
         RLPItem isExternalStorage = (RLPItem) rlpList.get(1);
         RLPItem storage = (RLPItem) rlpList.get(3);
         this.externalStorage = isExternalStorage.getRLPData().length > 0;
-        boolean keepStorageInMem = storage.getRLPData().length <= detailsInMemoryStorageLimit;
-
-        // No externalStorage require.
-        if (fastCheck && !externalStorage && keepStorageInMem) {
-            return;
-        }
+        boolean keepStorageInMem = false; // to enforce switch to external storage
 
         RLPItem address = (RLPItem) rlpList.get(0);
         RLPItem storageRoot = (RLPItem) rlpList.get(2);
@@ -269,28 +266,21 @@ public class AionContractDetailsImpl extends AbstractContractDetails {
     /**
      * Decodes the new version of encoding.
      *
-     * <p>The encoding is a list of 6 elements for FVM contracts:<br>
-     * { address, vmType, isExternalStorage, storageRoot, storage, code }
+     * <p>The encoding is a list of 4 elements for FVM contracts:<br>
+     * { 0:address, 1:vmType, 2:code, 3:storageRoot }
      *
-     * <p>The encoding is a list of 7 elements for AVM contracts:<br>
-     * { address, vmType, isExternalStorage, storageRoot, storage, code, objectGraphHash }
+     * <p>The encoding is a list of 6 elements for AVM contracts:<br>
+     * { 0:address, 1:vmType, 2:code, 3:concatenatedStorageHash, 4:objectGraphHash, 5:storageRoot }
      */
-    public void decodePostFork(RLPList rlpList, boolean fastCheck) {
-        RLPItem isExternalStorage = (RLPItem) rlpList.get(2);
-        RLPItem storage = (RLPItem) rlpList.get(4);
-        this.externalStorage = isExternalStorage.getRLPData().length > 0;
-        boolean keepStorageInMem = storage.getRLPData().length <= detailsInMemoryStorageLimit;
-
-        // No externalStorage require.
-        if (fastCheck && !externalStorage && keepStorageInMem) {
-            return;
-        }
+    public void decodeNewEncoding(RLPList rlpList) {
+        // always use external storage after transition to new encoding
+        this.externalStorage = true;
 
         RLPItem address = (RLPItem) rlpList.get(0);
         RLPItem vm = (RLPItem) rlpList.get(1);
-        RLPItem storageRoot = (RLPItem) rlpList.get(3);
-        RLPElement code = rlpList.get(5);
+        RLPElement code = rlpList.get(2);
 
+        // decode address
         if (address == null
                 || address.getRLPData() == null
                 || address.getRLPData().length != Address.SIZE) {
@@ -299,12 +289,14 @@ public class AionContractDetailsImpl extends AbstractContractDetails {
             this.address = Address.wrap(address.getRLPData());
         }
 
+        // decode VM type
         if (vm == null || vm.getRLPData() == null || vm.getRLPData().length != 1) {
             throw new IllegalArgumentException("rlp decode error: invalid vm code");
         } else {
             this.vmType = vm.getRLPData()[0];
         }
 
+        // decode code
         if (code instanceof RLPList) {
             for (RLPElement e : ((RLPList) code)) {
                 setCode(e.getRLPData());
@@ -313,30 +305,67 @@ public class AionContractDetailsImpl extends AbstractContractDetails {
             setCode(code.getRLPData());
         }
 
-        // load/deserialize storage trie
-        if (externalStorage) {
-            storageTrie = new SecureTrie(getExternalStorageDataSource(), storageRoot.getRLPData());
-        } else {
-            storageTrie.deserialize(storage.getRLPData());
-        }
-        storageTrie.withPruningEnabled(prune > 0);
+        if (rlpList.size() == 4) { // FVM contract encoding
+            // sanity check
+            if (vmType != TransactionTypes.FVM_CREATE_CODE) {
+                throw new IllegalArgumentException(
+                        "rlp decode error: encoding size 4 is used only by fvm");
+            }
 
-        // switch from in-memory to external storage
-        if (!externalStorage && !keepStorageInMem) {
-            externalStorage = true;
-            storageTrie.getCache().setDB(getExternalStorageDataSource());
-        }
+            // decode FVM storage root
+            RLPItem storageRoot = (RLPItem) rlpList.get(3);
+            if (storageRoot == null
+                    || storageRoot.getRLPData() == null
+                    || (storageRoot.getRLPData().length != HASH_SIZE // must be a hash or empty
+                            && storageRoot.getRLPData().length != 0)) {
+                throw new IllegalArgumentException("rlp decode error: invalid FVM storage root");
+            } else {
+                storageTrie =
+                        new SecureTrie(getExternalStorageDataSource(), storageRoot.getRLPData());
+                storageTrie.withPruningEnabled(prune > 0);
+            }
+        } else if (rlpList.size() == 6) { // AVM contract encoding
+            // sanity check
+            if (vmType != TransactionTypes.AVM_CREATE_CODE) {
+                throw new IllegalArgumentException(
+                        "rlp decode error: encoding size 6 is used only by avm");
+            }
 
-        // get object graph hash only for AVM
-        if (vmType == TransactionTypes.AVM_CREATE_CODE) {
-            RLPItem graphHash = (RLPItem) rlpList.get(6);
+            // decode AVM concatenated storage hash
+            RLPItem concatHash = (RLPItem) rlpList.get(3);
+            if (concatHash == null
+                    || concatHash.getRLPData() == null
+                    || concatHash.getRLPData().length != HASH_SIZE) {
+                throw new IllegalArgumentException(
+                        "rlp decode error: invalid AVM concatenated storage hash");
+            } else {
+                this.concatenatedStorageHash = concatHash.getRLPData();
+            }
+
+            // decode AVM object graph hash
+            RLPItem graphHash = (RLPItem) rlpList.get(4);
             if (graphHash == null
                     || graphHash.getRLPData() == null
-                    || graphHash.getRLPData().length != 32) {
-                throw new IllegalArgumentException("rlp decode error: invalid object graph hash");
+                    || graphHash.getRLPData().length != HASH_SIZE) {
+                throw new IllegalArgumentException(
+                        "rlp decode error: invalid AVM object graph hash");
             } else {
                 this.objectGraphHash = graphHash.getRLPData();
             }
+
+            // decode AVM storage root
+            RLPItem storageRoot = (RLPItem) rlpList.get(5);
+            if (storageRoot == null
+                    || storageRoot.getRLPData() == null
+                    || storageRoot.getRLPData().length != HASH_SIZE) {
+                throw new IllegalArgumentException("rlp decode error: invalid FVM storage root");
+            } else {
+                storageTrie =
+                        new SecureTrie(getExternalStorageDataSource(), storageRoot.getRLPData());
+                storageTrie.withPruningEnabled(prune > 0);
+            }
+        } else {
+            throw new IllegalArgumentException("rlp decode error: invalid encoded list size");
         }
     }
 
@@ -345,8 +374,7 @@ public class AionContractDetailsImpl extends AbstractContractDetails {
      *
      * @return an rlp encoding of this.
      */
-    @Override
-    public byte[] getEncoded() {
+    public byte[] getEncodedOld() {
         if (rlpEncoded == null) {
 
             byte[] rlpAddress = RLP.encodeElement(address.toBytes());
@@ -375,24 +403,22 @@ public class AionContractDetailsImpl extends AbstractContractDetails {
      * Returns an rlp encoding of this AionContractDetailsImpl object.
      *
      * <p>The encoding is a list of 6 elements for FVM contracts:<br>
-     * { address, vmType, isExternalStorage, storageRoot, storage, code }
+     * { address, vmType, code, isExternalStorage, storageRoot, storage }
      *
      * <p>The encoding is a list of 7 elements for AVM contracts:<br>
-     * { address, vmType, isExternalStorage, storageRoot, storage, code, objectGraphHash }
+     * { address, vmType, code, concatenatedStorageHash, objectGraphHash, storageRoot }
      *
      * @return an rlp encoding of this object
      */
-    public byte[] getEncodedPostFork() {
+    @Override
+    public byte[] getEncoded() {
         if (rlpEncoded == null) {
 
             byte[] rlpAddress = RLP.encodeElement(address.toBytes());
             byte[] rlpVmType = RLP.encodeByte(vmType);
-            byte[] rlpIsExternalStorage = RLP.encodeByte((byte) (externalStorage ? 1 : 0));
             byte[] rlpStorageRoot =
                     RLP.encodeElement(
                             externalStorage ? storageTrie.getRootHash() : EMPTY_BYTE_ARRAY);
-            byte[] rlpStorage =
-                    RLP.encodeElement(externalStorage ? EMPTY_BYTE_ARRAY : storageTrie.serialize());
             byte[][] codes = new byte[getCodes().size()][];
             int i = 0;
             for (byte[] bytes : this.getCodes().values()) {
@@ -400,27 +426,26 @@ public class AionContractDetailsImpl extends AbstractContractDetails {
             }
             byte[] rlpCode = RLP.encodeList(codes);
 
-            if (vmType == TransactionTypes.FVM_CREATE_CODE) {
-                this.rlpEncoded =
-                        RLP.encodeList(
-                                rlpAddress,
-                                rlpVmType,
-                                rlpIsExternalStorage,
-                                rlpStorageRoot,
-                                rlpStorage,
-                                rlpCode);
-            } else if (vmType == TransactionTypes.AVM_CREATE_CODE) {
+            if (vmType == TransactionTypes.AVM_CREATE_CODE) {
                 // storing also the object graph for the AVM
                 byte[] rlpObjectGraphHash = RLP.encodeElement(objectGraphHash);
+                byte[] rlpConcatenatedStorageHash = RLP.encodeElement(concatenatedStorageHash);
+
                 this.rlpEncoded =
                         RLP.encodeList(
                                 rlpAddress,
                                 rlpVmType,
-                                rlpIsExternalStorage,
-                                rlpStorageRoot,
-                                rlpStorage,
                                 rlpCode,
-                                rlpObjectGraphHash);
+                                rlpConcatenatedStorageHash,
+                                rlpObjectGraphHash,
+                                rlpStorageRoot);
+            } else {
+                if (vmType != TransactionTypes.FVM_CREATE_CODE) {
+                    // for precompiled contracts
+                    vmType = TransactionTypes.FVM_CREATE_CODE;
+                    rlpVmType = RLP.encodeByte(vmType);
+                }
+                this.rlpEncoded = RLP.encodeList(rlpAddress, rlpVmType, rlpCode, rlpStorageRoot);
             }
         }
 
@@ -455,6 +480,19 @@ public class AionContractDetailsImpl extends AbstractContractDetails {
     /** Syncs the storage trie. */
     @Override
     public void syncStorage() {
+        if (vmType == TransactionTypes.AVM_CREATE_CODE) {
+            if (objectGraph == null || Arrays.equals(objectGraphHash, EMPTY_DATA_HASH)) {
+                throw new IllegalStateException(
+                        "The AVM object graph must be set before pushing data to disk.");
+            }
+            getContractObjectGraphSource().put(objectGraphHash, objectGraph);
+            getContractObjectGraphSource()
+                    .put(
+                            computeAvmStorageHash(),
+                            RLP.encodeList(
+                                    RLP.encodeElement(storageTrie.getRootHash()),
+                                    RLP.encodeElement(getObjectGraph())));
+        }
 
         if (externalStorage) {
             storageTrie.sync();
@@ -558,6 +596,13 @@ public class AionContractDetailsImpl extends AbstractContractDetails {
                         ? EMPTY_DATA_HASH
                         : Arrays.copyOf(this.objectGraphHash, this.objectGraphHash.length);
 
+        // storage hash used by AVM
+        details.concatenatedStorageHash =
+                Arrays.equals(concatenatedStorageHash, EMPTY_DATA_HASH)
+                        ? EMPTY_DATA_HASH
+                        : Arrays.copyOf(
+                                this.concatenatedStorageHash, this.concatenatedStorageHash.length);
+
         return details;
     }
 
@@ -598,6 +643,13 @@ public class AionContractDetailsImpl extends AbstractContractDetails {
                 Arrays.equals(objectGraphHash, EMPTY_DATA_HASH)
                         ? EMPTY_DATA_HASH
                         : Arrays.copyOf(this.objectGraphHash, this.objectGraphHash.length);
+
+        // storage hash used by AVM
+        aionContractDetailsCopy.concatenatedStorageHash =
+                Arrays.equals(concatenatedStorageHash, EMPTY_DATA_HASH)
+                        ? EMPTY_DATA_HASH
+                        : Arrays.copyOf(
+                                this.concatenatedStorageHash, this.concatenatedStorageHash.length);
 
         aionContractDetailsCopy.prune = this.prune;
         aionContractDetailsCopy.detailsInMemoryStorageLimit = this.detailsInMemoryStorageLimit;
