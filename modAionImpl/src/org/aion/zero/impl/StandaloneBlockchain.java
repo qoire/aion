@@ -370,7 +370,8 @@ public class StandaloneBlockchain extends AionBlockchainImpl {
                 track.addStorageRow(
                         ContractFactory.getTotalCurrencyContractAddress(),
                         new DataWordImpl(key.getKey()).toWrapper(),
-                        new ByteArrayWrapper(new DataWordImpl(key.getValue()).getNoLeadZeroesData()));
+                        new ByteArrayWrapper(
+                                new DataWordImpl(key.getValue()).getNoLeadZeroesData()));
             }
 
             for (Address key : genesis.getPremine().keySet()) {
@@ -398,6 +399,7 @@ public class StandaloneBlockchain extends AionBlockchainImpl {
                 bc.getRepository().getBlockStore().saveBlock(parentBest, totalDiffParent, true);
                 bc.getRepository().getBlockStore().saveBlock(best, totalDiff, true);
                 bc.setBestBlock(best);
+                bc.setTotalDifficulty(totalDiff);
                 bc.getRepository().loadImportableState(trieData, DatabaseType.STATE);
                 bc.getRepository().getWorldState().setRoot(best.getStateRoot());
                 bc.getRepository().getWorldState().sync(false);
