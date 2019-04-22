@@ -4,3 +4,5 @@ modAionImpl/test_resources/masteryStateAt720106.txt filter=lfs diff=lfs merge=lf
 modAionImpl/test_resources/masteryStateAt449071.txt filter=lfs diff=lfs merge=lfs -text
 modAionImpl/test_resources/masteryStorageAt449071.txt filter=lfs diff=lfs merge=lfs -text
 modAionImpl/test_resources/masteryStateAt1023848.txt filter=lfs diff=lfs merge=lfs -text
+modAionImpl/test_resources/masteryStateAt1207579.txt filter=lfs diff=lfs merge=lfs -text
+modAionImpl/test_resources/masteryStorageAt1207579Acc481c.txt filter=lfs diff=lfs merge=lfs -text
