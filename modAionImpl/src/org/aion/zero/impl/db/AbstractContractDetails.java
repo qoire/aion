@@ -106,16 +106,18 @@ public abstract class AbstractContractDetails implements ContractDetails {
     @Override
     public String toString() {
         String ret;
+        ret = "VM: " + vmType;
+        ret += " dirty: " + isDirty();
 
         if (codes != null) {
-            ret =
+            ret +=
                     "  Code: "
                             + (codes.size() < 2
                                     ? Hex.toHexString(getCode())
                                     : codes.size() + " versions")
                             + "\n";
         } else {
-            ret = "  Code: null\n";
+            ret += "  Code: null\n";
         }
 
         byte[] storage = getStorageHash();

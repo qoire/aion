@@ -1,0 +1,76 @@
+ /** Tests importing block <a href="https://mastery.aion.network/#/block/1207580">1207580</a>. */
+    @Test
+    public void testImportBlock1207580() {
+        // data extracted from the mastery network
+        AionBlock block1207578 =
+                new AionBlock(
+                        Hex.decode(
+                                ""));
+        BigInteger tdAt1207578 = BigInteger.valueOf(4_114_127);
+
+        AionBlock block1207579 =
+                new AionBlock(
+                        Hex.decode(
+                                ""));
+        BigInteger tdAt1207579 = BigInteger.valueOf(4_114_145);
+
+        byte[] trieDataAt1207579 = Hex.decode(hexEncodedStateData("masteryStateAt1207579.txt"));
+
+        // block to import
+        AionBlock block1207580 =
+                new AionBlock(
+                        Hex.decode(
+                                ""));
+        BigInteger expectedTdAt1207580 = BigInteger.valueOf(4_114_163);
+
+        // setup blockchain with state before imported block
+        StandaloneBlockchain blockchain =
+                new Builder()
+                        .withState(
+                                block1207578, tdAt1207578, block1207579, tdAt1207579, trieDataAt1207579)
+                        .withDetails(
+                                new Address(
+                                        "0000000000000000000000000000000000000000000000000000000000000200"),
+                                Hex.decode(
+                                        "f846a0000000000000000000000000000000000000000000000000000000000000020001a045b0cfc220ceec5b7c1c62c4d4193d38e4eba48e8815729ce75f9c0ab0e4c1c080c001"))
+                        .withAvmEnabled()
+                        .build()
+                        .bc;
+
+        // import block
+        Pair<ImportResult, AionBlockSummary> results =
+                blockchain.tryToConnectAndFetchSummary(block1207580);
+        assertThat(results.getLeft()).isEqualTo(ImportResult.IMPORTED_BEST);
+
+        // collect the consensus information from the block & receipt.
+        AionBlockSummary blockSummary = results.getRight();
+
+        // check the receipt
+        AionTxReceipt receipt = blockSummary.getSummaries().get(0).getReceipt();
+        assertThat(receipt.isSuccessful()).isTrue();
+        System.out.println(receipt);
+        assertThat(receipt.getEnergyUsed()).isEqualTo(44_304);
+        assertThat(receipt.getPostTxState())
+                .isEqualTo(
+                        Hex.decode(
+                                "b365067f1b0151b0064f5d31caa78c0d8590b11a56f7ece859b5b766e6612c92"));
+
+        byte[] stateRoot = blockSummary.getBlock().getStateRoot();
+        byte[] blockReceiptsRoot = blockSummary.getBlock().getReceiptsRoot();
+        byte[] receiptTrieEncoded = receipt.getReceiptTrieEncoded();
+
+        // verify the consensus information.
+        String expectedRoot = "37d47d9fa827ef34c2dd844e2cd72a2fe4a06d23bbdb2d97226cb4fb7c8432db";
+        String expectedReceiptsRoot =
+                "224e0b2f1c4e49fb7c57c8d34dbbb395ea350c1c03e8c1e1dc518cabfe26366b";
+        String expectedReceiptsTrie =
+                "";
+        assertThat(stateRoot).isEqualTo(Hex.decode(expectedRoot));
+        assertThat(blockReceiptsRoot).isEqualTo(Hex.decode(expectedReceiptsRoot));
+        assertThat(receiptTrieEncoded).isEqualTo(Hex.decode(expectedReceiptsTrie));
+
+        // checking repository state and total difficulty
+        assertThat(blockchain.getRepository().getRoot()).isEqualTo(Hex.decode(expectedRoot));
+        assertThat(blockchain.getTotalDifficulty()).isEqualTo(expectedTdAt1207580);
+    }
+

@@ -1313,6 +1313,9 @@ public class AionBlockchainImpl implements IAionBlockchain {
     }
 
     private AionBlockSummary applyBlock(IAionBlock block) {
+        if (block.getNumber() == 1207581L) {
+            System.exit(1);
+        }
         long saveTime = System.nanoTime();
 
         List<AionTxReceipt> receipts = new ArrayList<>();

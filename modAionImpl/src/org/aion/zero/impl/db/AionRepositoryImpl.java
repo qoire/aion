@@ -33,7 +33,6 @@ import org.aion.mcf.trie.TrieImpl;
 import org.aion.mcf.trie.TrieNodeResult;
 import org.aion.mcf.tx.TransactionTypes;
 import org.aion.p2p.V1Constants;
-import org.aion.precompiled.ContractFactory;
 import org.aion.rlp.RLP;
 import org.aion.rlp.RLPElement;
 import org.aion.rlp.RLPList;
@@ -126,6 +125,7 @@ public class AionRepositoryImpl
     public void updateBatch(
             Map<Address, AccountState> stateCache, Map<Address, ContractDetails> detailsCache) {
         rwLock.writeLock().lock();
+        System.out.println(this.toString());
 
         try {
             for (Map.Entry<Address, AccountState> entry : stateCache.entrySet()) {
@@ -133,6 +133,8 @@ public class AionRepositoryImpl
                 AccountState accountState = entry.getValue();
                 ContractDetails contractDetails = detailsCache.get(address);
 
+                System.out.println(
+                        "Before: " + address + "\n" + accountState + "\n" + contractDetails);
                 if (accountState.isDeleted()) {
                     // TODO-A: batch operations here
                     try {
@@ -200,6 +202,8 @@ public class AionRepositoryImpl
                                 Hex.toHexString(contractDetails.getStorageHash()));
                     }
                 }
+                System.out.println(
+                        "After: " + address + "\n" + accountState + "\n" + contractDetails);
             }
 
             if (LOG.isTraceEnabled()) {
@@ -464,6 +468,14 @@ public class AionRepositoryImpl
                             address.toString(),
                             result.toString());
                 }
+                System.out.println(
+                        "New AccountSate ["
+                                + address
+                                + "], State ["
+                                + result
+                                + "], Encoding ["
+                                + Hex.toHexString(accountData)
+                                + "]");
             }
             return result;
         } finally {
