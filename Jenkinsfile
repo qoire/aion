@@ -10,7 +10,7 @@ pipeline {
             steps {
                 echo "Building branch: ${env.BRANCH_NAME}"
                 sh "git lfs install"
-                sh "./gradlew pack" 
+                sh "./gradlew pack -x test" 
             }
         }
         
@@ -26,25 +26,11 @@ pipeline {
                 archiveArtifacts artifacts: 'pack/aion-v*.tar.bz2'
             }
         }
-        
-        stage('Unit test') {
-            steps {
-                timeout(60) {
-                    sh "./gradlew ciBuild" 
-                }
-            }
-        }
 
         stage('Functional tests') { 
-            when { 
-                // only run if:
-                // - this branch is in a PR (env.CHANGE_ID not null), or
-                // - this branch is master or master-pre-merge
-                expression { env.CHANGE_ID || GIT_BRANCH == 'master' || GIT_BRANCH == 'master-pre-merge' } 
-            }
             steps { 
                     dir('FunctionalTests') {
-                        git url: 'https://github.com/aionnetwork/node_test_harness.git', branch: 'master' 
+                        git url: 'https://github.com/aionnetwork/node_test_harness.git', branch: 'master-debug' 
                     }
 
                     sh('cp pack/aion.tar.bz2 FunctionalTests/Tests')
