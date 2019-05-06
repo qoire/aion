@@ -21,6 +21,7 @@ import org.aion.mcf.config.CfgFork;
 import org.aion.mcf.config.CfgGui;
 import org.aion.mcf.config.CfgLog;
 import org.aion.mcf.config.CfgNet;
+import org.aion.mcf.config.CfgPendingPool;
 import org.aion.mcf.config.CfgReports;
 import org.aion.mcf.config.CfgSync;
 import org.aion.mcf.config.CfgTx;
@@ -53,6 +54,7 @@ public final class CfgAion extends Cfg {
         this.reports = new CfgReports();
         this.gui = new CfgGui();
         this.fork = new CfgFork();
+        this.pendingPool = new CfgPendingPool();
         initializeConfiguration();
     }
 
@@ -236,6 +238,9 @@ public final class CfgAion extends Cfg {
                             break;
                         case "gui":
                             this.gui.fromXML(sr);
+                            break;
+                        case "pendingpool":
+                            this.pendingPool.fromXML(sr);
                             break;
                         default:
                             skipElement(sr);

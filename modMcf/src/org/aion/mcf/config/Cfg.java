@@ -39,6 +39,8 @@ public abstract class Cfg {
 
     protected CfgFork fork;
 
+    protected CfgPendingPool pendingPool;
+
     public void setId(final String _id) {
         this.id = _id;
     }
@@ -61,6 +63,10 @@ public abstract class Cfg {
 
     public void setTx(final CfgTx _tx) {
         this.tx = _tx;
+    }
+
+    public void setPendingPool(final CfgPendingPool _pendingPool) {
+        this.pendingPool = _pendingPool;
     }
 
     public String getId() {
@@ -117,6 +123,10 @@ public abstract class Cfg {
 
     public void setConsensus(CfgConsensus _consensus) {
         this.consensus = _consensus;
+    }
+
+    public CfgPendingPool getPendingPool() {
+        return this.pendingPool;
     }
 
     /* ------------ execution path management ------------ */
