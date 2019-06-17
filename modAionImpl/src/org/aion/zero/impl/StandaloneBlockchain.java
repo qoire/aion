@@ -9,7 +9,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
-import org.aion.types.AionAddress;
 import org.aion.crypto.ECKey;
 import org.aion.crypto.ECKeyFac;
 import org.aion.crypto.HashUtil;
@@ -26,9 +25,10 @@ import org.aion.mcf.core.ImportResult;
 import org.aion.mcf.valid.BlockHeaderValidator;
 import org.aion.mcf.vm.types.DataWordImpl;
 import org.aion.precompiled.ContractFactory;
+import org.aion.types.AionAddress;
+import org.aion.util.types.AddressUtils;
 import org.aion.vm.api.types.ByteArrayWrapper;
 import org.aion.vm.api.types.Hash256;
-import org.aion.util.types.AddressUtils;
 import org.aion.zero.exceptions.HeaderStructureException;
 import org.aion.zero.impl.blockchain.ChainConfiguration;
 import org.aion.zero.impl.core.energy.AbstractEnergyStrategyLimit;
@@ -46,6 +46,7 @@ import org.aion.zero.impl.valid.TXValidator;
 import org.aion.zero.types.A0BlockHeader;
 import org.aion.zero.types.AionTransaction;
 import org.apache.commons.lang3.tuple.Pair;
+import org.apache.commons.lang3.tuple.Triple;
 
 /**
  * Used mainly for debugging and testing purposes, provides codepaths for easy setup, into standard
@@ -228,6 +229,19 @@ public class StandaloneBlockchain extends AionBlockchainImpl {
             return this;
         }
 
+        private Map<AionAddress, Triple<ByteArrayWrapper, ByteArrayWrapper, InternalVmType>>
+                contractIndex = new HashMap<>();
+
+        /** Required by contracts that are not precompiled to get the correct VM type during use. */
+        public Builder withContractIndex(
+                AionAddress contract,
+                ByteArrayWrapper codeHash,
+                ByteArrayWrapper inceptionBlock,
+                InternalVmType vmType) {
+            this.contractIndex.put(contract, Triple.of(codeHash, inceptionBlock, vmType));
+            return this;
+        }
+
         private Map<AionAddress, byte[]> contractStorage = new HashMap<>();
 
         /**
@@ -350,7 +364,8 @@ public class StandaloneBlockchain extends AionBlockchainImpl {
 
             AionGenesis.Builder genesisBuilder = new AionGenesis.Builder();
             for (Map.Entry<ByteArrayWrapper, AccountState> acc : this.initialState.entrySet()) {
-                genesisBuilder.addPreminedAccount(new AionAddress(acc.getKey().getData()), acc.getValue());
+                genesisBuilder.addPreminedAccount(
+                        new AionAddress(acc.getKey().getData()), acc.getValue());
             }
 
             AionGenesis genesis;
@@ -413,6 +428,17 @@ public class StandaloneBlockchain extends AionBlockchainImpl {
                                     contract.toByteArray(),
                                     contractDetails.get(contract),
                                     DatabaseType.DETAILS);
+                }
+            }
+
+            // set contract index
+            if (!contractIndex.isEmpty()) {
+                for (AionAddress contract : contractIndex.keySet()) {
+                    Triple<ByteArrayWrapper, ByteArrayWrapper, InternalVmType> ci =
+                            contractIndex.get(contract);
+                    bc.getRepository()
+                            .saveIndexedContractInformation(
+                                    contract, ci.getLeft(), ci.getMiddle(), ci.getRight(), true);
                 }
             }
 
