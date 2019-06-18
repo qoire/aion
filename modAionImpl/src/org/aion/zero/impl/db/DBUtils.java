@@ -15,6 +15,7 @@ import org.aion.mcf.core.ImportResult;
 import org.aion.mcf.db.IBlockStoreBase;
 import org.aion.util.conversions.Hex;
 import org.aion.util.types.AddressUtils;
+import org.aion.vm.LongLivedAvm;
 import org.aion.zero.impl.AionBlockchainImpl;
 import org.aion.zero.impl.AionGenesis;
 import org.aion.zero.impl.AionHubUtils;
@@ -23,6 +24,8 @@ import org.aion.zero.impl.core.IAionBlockchain;
 import org.aion.zero.impl.sync.DatabaseType;
 import org.aion.zero.impl.types.AionBlock;
 import org.aion.zero.impl.types.AionBlockSummary;
+import org.aion.zero.impl.types.AionTxInfo;
+import org.aion.zero.types.AionTransaction;
 import org.apache.commons.lang3.tuple.Pair;
 
 /**
@@ -33,7 +36,7 @@ import org.apache.commons.lang3.tuple.Pair;
  *     into a diverse set of CLI calls for displaying or manipulating the data. It would benefit
  *     from refactoring to separate the different use cases.
  */
-public class RecoveryUtils {
+public class DBUtils {
 
     public enum Status {
         SUCCESS,
@@ -702,5 +705,118 @@ public class RecoveryUtils {
         repo.close();
 
         System.out.println("Importing stored blocks COMPLETE.");
+    }
+
+    /**
+     * @implNote Used by the CLI call.
+     */
+    public static Status queryTransaction(byte[] txHash) {
+        // ensure mining is disabled
+        CfgAion cfg = CfgAion.inst();
+        cfg.dbFromXML();
+        cfg.getConsensus().setMining(false);
+
+        AionLoggerFactory.init(new HashMap<>());
+        // get the current blockchain
+        AionBlockchainImpl blockchain = AionBlockchainImpl.inst();
+
+        try  {
+            List<AionTxInfo> txInfoList = blockchain.getTransactionStore().get(txHash);
+
+            if (txInfoList == null || txInfoList.isEmpty()) {
+                System.out.println("Can not find the transaction with given hash.");
+                return Status.FAILURE;
+            }
+
+            for (AionTxInfo info : txInfoList) {
+
+                AionBlock block = blockchain.getBlockStore().getBlockByHash(info.getBlockHash());
+                if (block == null) {
+                    System.out.println("Can not find the block data with given block hash of the transaction info.");
+                    System.out.println("The database might corruption. Please consider to re-import the db by ./aion.sh -n <network> --redo-import");
+                    return Status.FAILURE;
+                }
+
+                AionTransaction tx =  block.getTransactionsList().get(info.getIndex());
+
+                if (tx == null) {
+                    System.out.println("Can not find the transaction data with given hash.");
+                    System.out.println("The database might corruption. Please consider to re-import the db by ./aion.sh -n <network> --redo-import");
+                    return Status.FAILURE;
+                }
+
+                System.out.println(tx.toString());
+                System.out.println(info.toString());
+                System.out.println();
+            }
+
+            return Status.SUCCESS;
+        } finally{
+            blockchain.getRepository().close();
+        }
+    }
+
+    /**
+     * @implNote Used by the CLI call.
+     */
+    public static Status queryBlock(long nbBlock) {
+        // ensure mining is disabled
+        CfgAion cfg = CfgAion.inst();
+        cfg.dbFromXML();
+        cfg.getConsensus().setMining(false);
+
+        AionLoggerFactory.init(new HashMap<>());
+
+        // get the current blockchain
+        AionBlockchainImpl blockchain = AionBlockchainImpl.inst();
+
+        try  {
+            LongLivedAvm.createAndStartLongLivedAvm();
+            List<AionBlock> blocks = blockchain.getBlockStore().getAllChainBlockByNumber(nbBlock);
+
+            if (blocks == null || blocks.isEmpty()) {
+                System.out.println("Can not find the block with given block height.");
+                return Status.FAILURE;
+            }
+
+            for (AionBlock b : blocks) {
+                System.out.println(b);
+
+                List<AionTransaction> txList = b.getTransactionsList();
+
+                for (AionTransaction tx : txList) {
+                    System.out.println(blockchain.getTransactionInfo(tx.getTransactionHash()));
+                }
+                System.out.println();
+            }
+
+            //Now print the transaction state. Only for the mainchain.
+
+// TODO: the worldstate can not read the data after the stateroot has been setup, need to fix the issue first then the tooling can print the states between the block.
+
+//            AionBlock mainChainBlock = blockchain.getBlockStore().getChainBlockByNumber(nbBlock);
+//            if (mainChainBlock == null) {
+//                System.out.println("Can not find the mainchain block with given block height.");
+//                return Status.FAILURE;
+//            }
+//
+//            AionBlock parentBlock = blockchain.getBlockByHash(mainChainBlock.getParentHash());
+//            if (parentBlock == null) {
+//                System.out.println("Can not find the parent block with given block height.");
+//                return Status.FAILURE;
+//            }
+//
+//            blockchain.getRepository().setRoot(parentBlock.getStateRoot());
+//
+//            Repository repo = blockchain.getRepository().getSnapshotTo(parentBlock.getStateRoot());
+//            blockchain.setRepository((AionRepositoryImpl) repo);
+//            blockchain.setBestBlock(parentBlock);
+//            blockchain.addNoFlush(mainChainBlock);
+
+            return Status.SUCCESS;
+        } finally{
+            blockchain.getRepository().close();
+            LongLivedAvm.destroy();
+        }
     }
 }

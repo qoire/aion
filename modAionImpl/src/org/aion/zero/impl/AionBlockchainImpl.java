@@ -1135,6 +1135,11 @@ public class AionBlockchainImpl implements IAionBlockchain {
         return summary;
     }
 
+    public AionBlockSummary addNoFlush(AionBlock block) {
+        track = repository.startTracking();
+        return processBlock(block);
+    }
+
     @Override
     public void flush() {
         repository.flush();

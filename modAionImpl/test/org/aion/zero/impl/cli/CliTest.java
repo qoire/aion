@@ -2036,6 +2036,12 @@ public class CliTest {
         skippedTasks.add("--db-compact");
         parameters.add(new Object[] {input, TaskPriority.DUMP_BLOCKS, skippedTasks});
 
+        input = new String[] {"--query block", "100", "--query tx", "0xa0", "--query account", "0xa0"};
+        skippedTasks = new HashSet<>();
+        skippedTasks.add("--query tx");
+        skippedTasks.add("--query account");
+        parameters.add(new Object[] {input, TaskPriority.QUERY_BLOCK, skippedTasks});
+
         return parameters.toArray();
     }
 

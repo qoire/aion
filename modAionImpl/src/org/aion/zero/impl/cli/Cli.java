@@ -4,6 +4,7 @@ import static org.aion.zero.impl.cli.Cli.ReturnType.ERROR;
 import static org.aion.zero.impl.cli.Cli.ReturnType.EXIT;
 import static org.aion.zero.impl.cli.Cli.ReturnType.RUN;
 import static org.aion.zero.impl.config.Network.determineNetwork;
+import static org.aion.zero.impl.db.DBUtils.Status.SUCCESS;
 
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
@@ -24,11 +25,13 @@ import org.aion.mcf.account.Keystore;
 import org.aion.mcf.config.Cfg;
 import org.aion.mcf.config.CfgSsl;
 import org.aion.mcf.config.CfgSync;
+import org.aion.util.bytes.ByteUtil;
 import org.aion.util.conversions.Hex;
 import org.aion.vm.LongLivedAvm;
+import org.aion.vm.exception.VMException;
 import org.aion.zero.impl.Version;
 import org.aion.zero.impl.config.Network;
-import org.aion.zero.impl.db.RecoveryUtils;
+import org.aion.zero.impl.db.DBUtils;
 import org.apache.commons.lang3.ArrayUtils;
 import picocli.CommandLine;
 
@@ -69,6 +72,9 @@ public class Cli {
         VERSION,
         CONFIG,
         INFO,
+        QUERY_BLOCK,
+        QUERY_TX,
+        QUERY_ACCOUNT,
         CREATE_ACCOUNT,
         LIST_ACCOUNTS,
         EXPORT_ACCOUNT,
@@ -326,6 +332,30 @@ public class Cli {
             // set correct keystore directory
             Keystore.setKeystorePath(cfg.getKeystoreDir().getAbsolutePath());
 
+            if (options.getBlockDetails() != null) {
+                if (SUCCESS != getBlockDetails(options.getBlockDetails())) {
+                    System.out.println("Invalid block query! Please check your input argument.");
+                    return ERROR;
+                } else {
+                    return EXIT;
+                }
+            }
+
+            if (options.getTransactionDetails() != null) {
+                if (SUCCESS != getTransactionDetails(options.getTransactionDetails())) {
+                    System.out.println("Invalid transaction query! Please check your input argument.");
+                    return ERROR;
+                } else {
+                    return EXIT;
+                }
+            }
+
+            // TODO: implement it when the worldstate setRoot has been fixed.
+            if (options.getAccountDetails() != null) {
+                System.out.println("Function has not been implemented yet.");
+                return EXIT;
+            }
+
             if (options.isCreateAccount()) {
                 if (!createAccount()) {
                     return ERROR;
@@ -385,7 +415,7 @@ public class Cli {
 
             if (options.isRebuildBlockInfo()) {
                 System.out.println("Starting database clean-up.");
-                RecoveryUtils.pruneAndCorrect();
+                DBUtils.pruneAndCorrect();
                 System.out.println("Finished database clean-up.");
                 return EXIT;
             }
@@ -417,7 +447,7 @@ public class Cli {
             if (options.getPruneStateOption() != null) {
                 String pruning_type = options.getPruneStateOption();
                 try {
-                    RecoveryUtils.pruneOrRecoverState(pruning_type);
+                    DBUtils.pruneOrRecoverState(pruning_type);
                     return EXIT;
                 } catch (Exception e) {
                     System.out.println("Reorganizing the state storage FAILED due to:");
@@ -432,7 +462,7 @@ public class Cli {
 
                 if (parameter.isEmpty()) {
                     System.out.println("Retrieving state size for top " + block_count + " blocks.");
-                    RecoveryUtils.printStateTrieSize(block_count);
+                    DBUtils.printStateTrieSize(block_count);
                     return EXIT;
                 } else {
                     try {
@@ -450,7 +480,7 @@ public class Cli {
                     }
 
                     System.out.println("Retrieving state size for top " + block_count + " blocks.");
-                    RecoveryUtils.printStateTrieSize(block_count);
+                    DBUtils.printStateTrieSize(block_count);
                     return EXIT;
                 }
             }
@@ -461,7 +491,7 @@ public class Cli {
 
                 if (parameter.isEmpty()) {
                     System.out.println("Retrieving state for top main chain block...");
-                    RecoveryUtils.printStateTrieDump(level);
+                    DBUtils.printStateTrieDump(level);
                     return EXIT;
                 } else {
                     try {
@@ -479,7 +509,7 @@ public class Cli {
                         System.out.println(
                                 "Retrieving state for main chain block at level " + level + "...");
                     }
-                    RecoveryUtils.printStateTrieDump(level);
+                    DBUtils.printStateTrieDump(level);
                     return EXIT;
                 }
             }
@@ -507,7 +537,7 @@ public class Cli {
                                     + level
                                     + "...");
 
-                    RecoveryUtils.dumpTestData(level, parameters);
+                    DBUtils.dumpTestData(level, parameters);
                     return EXIT;
                 }
             }
@@ -518,7 +548,7 @@ public class Cli {
 
                 if (parameter.isEmpty()) {
                     System.out.println("Printing top " + count + " blocks from database.");
-                    RecoveryUtils.dumpBlocks(count);
+                    DBUtils.dumpBlocks(count);
                     return EXIT;
                 } else {
                     try {
@@ -536,13 +566,13 @@ public class Cli {
                     }
 
                     System.out.println("Printing top " + count + " blocks from database.");
-                    RecoveryUtils.dumpBlocks(count);
+                    DBUtils.dumpBlocks(count);
                     return EXIT;
                 }
             }
 
             if (options.isDbCompact()) {
-                RecoveryUtils.dbCompact();
+                DBUtils.dbCompact();
                 return EXIT;
             }
 
@@ -552,7 +582,7 @@ public class Cli {
 
                 if (parameter.isEmpty()) {
                     LongLivedAvm.createAndStartLongLivedAvm();
-                    RecoveryUtils.redoMainChainImport(height);
+                    DBUtils.redoMainChainImport(height);
                     LongLivedAvm.destroy();
                     return EXIT;
                 } else {
@@ -567,7 +597,7 @@ public class Cli {
                     }
 
                     LongLivedAvm.createAndStartLongLivedAvm();
-                    RecoveryUtils.redoMainChainImport(height);
+                    DBUtils.redoMainChainImport(height);
                     LongLivedAvm.destroy();
                     return EXIT;
                 }
@@ -581,6 +611,34 @@ public class Cli {
             e.printStackTrace();
             return ERROR;
         }
+    }
+
+    private DBUtils.Status getBlockDetails(String blockNumber) throws VMException {
+        long block;
+
+        try {
+            block = Long.parseLong(blockNumber);
+        } catch (NumberFormatException e) {
+            System.out.println(
+                "The given argument «" + blockNumber + "» cannot be converted to a number.");
+            return DBUtils.Status.ILLEGAL_ARGUMENT;
+        }
+
+        return DBUtils.queryBlock(block);
+    }
+
+    private DBUtils.Status getTransactionDetails(String txHash) throws VMException {
+        byte[] hash;
+
+        try {
+            hash = ByteUtil.hexStringToBytes(txHash);
+        } catch (NumberFormatException e) {
+            System.out.println(
+                "The given argument «" + txHash + "» cannot be converted to a valid transaction hash.");
+            return DBUtils.Status.ILLEGAL_ARGUMENT;
+        }
+
+        return DBUtils.queryTransaction(hash);
     }
 
     /**
@@ -976,6 +1034,16 @@ public class Cli {
         if (options.isRedoImport() != null) {
             return TaskPriority.REDO_IMPORT;
         }
+        if (options.getBlockDetails() != null) {
+            return TaskPriority.QUERY_BLOCK;
+        }
+        if (options.getTransactionDetails() != null) {
+            return TaskPriority.QUERY_TX;
+        }
+        if (options.getAccountDetails() != null) {
+            return TaskPriority.CREATE_ACCOUNT;
+        }
+
         return TaskPriority.NONE;
     }
 
@@ -1063,6 +1131,18 @@ public class Cli {
                 && options.isRedoImport() != null) {
             skippedTasks.add("--redo-import");
         }
+        if (breakingTaskPriority.compareTo(TaskPriority.QUERY_BLOCK) < 0
+            && options.getBlockDetails() != null) {
+            skippedTasks.add("--query block");
+        }
+        if (breakingTaskPriority.compareTo(TaskPriority.QUERY_TX) < 0
+            && options.getTransactionDetails() != null) {
+            skippedTasks.add("--query tx");
+        }
+        if (breakingTaskPriority.compareTo(TaskPriority.QUERY_ACCOUNT) < 0
+            && options.getAccountDetails() != null) {
+            skippedTasks.add("--query account");
+        }
         return skippedTasks;
     }
 
@@ -1089,7 +1169,7 @@ public class Cli {
         return null; // Make compiler happy; never get here.
     }
 
-    private RecoveryUtils.Status revertTo(String blockNumber) {
+    private DBUtils.Status revertTo(String blockNumber) {
         // try to convert to long
         long block;
 
@@ -1098,10 +1178,10 @@ public class Cli {
         } catch (NumberFormatException e) {
             System.out.println(
                     "The given argument «" + blockNumber + "» cannot be converted to a number.");
-            return RecoveryUtils.Status.ILLEGAL_ARGUMENT;
+            return DBUtils.Status.ILLEGAL_ARGUMENT;
         }
 
-        return RecoveryUtils.revertTo(block);
+        return DBUtils.revertTo(block);
     }
 
     private void createKeystoreDirIfMissing() {
