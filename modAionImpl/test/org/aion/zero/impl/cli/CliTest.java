@@ -2036,10 +2036,10 @@ public class CliTest {
         skippedTasks.add("--db-compact");
         parameters.add(new Object[] {input, TaskPriority.DUMP_BLOCKS, skippedTasks});
 
-        input = new String[] {"--query block", "100", "--query tx", "0xa0", "--query account", "0xa0"};
+        input = new String[] {"--query-block", "100", "--query-tx", "0xa0", "--query-account", "0xa0"};
         skippedTasks = new HashSet<>();
-        skippedTasks.add("--query tx");
-        skippedTasks.add("--query account");
+        skippedTasks.add("--query-tx");
+        skippedTasks.add("--query-account");
         parameters.add(new Object[] {input, TaskPriority.QUERY_BLOCK, skippedTasks});
 
         return parameters.toArray();
@@ -2059,6 +2059,37 @@ public class CliTest {
         assertEquals(expectedTasks, skippedTasks);
     }
 
+    /**
+     * Ensures that the { <i>qt</i>, <i>--query-tx</i>} arguments fail when
+     * invalid transaction hash is supplied.
+     * Separate 2 tests cause the db has load issue during the multiple parameters input.
+     */
+    @Test
+    @Parameters({"qt", "--query-tx"})
+    public void testQueryTransaction(String option) {
+        assertThat(mockCli.call(new String[] {option, "0xa0"}, cfg)).isEqualTo(ERROR);
+    }
+
+    /**
+     * Ensures that the { <i>qb</i>, <i>--query-block</i>} arguments fail when
+     * no blocknumber is supplied.
+     */
+    @Test
+    @Parameters({"qb", "--query-block"})
+    public void testQueryBlock(String option) {
+        assertThat(mockCli.call(new String[] {option, ""}, cfg)).isEqualTo(ERROR);
+    }
+
+    /**
+     * Ensures that the { <i>qa</i>, <i>--query-account</i>} arguments fail when
+     * invalid account address is supplied.
+     */
+    @Test
+    @Parameters({"qa", "--query-account"})
+    public void testQueryAccount(String option) {
+        assertThat(mockCli.call(new String[] {option, ""}, cfg)).isEqualTo(EXIT);
+    }
+    
     // Methods below taken from FileUtils class
     private static boolean copyRecursively(File src, File target) {
         if (src.isDirectory()) {

@@ -751,8 +751,10 @@ public class DBUtils {
             }
 
             return Status.SUCCESS;
-        } finally{
-            blockchain.getRepository().close();
+        } catch (Exception e) {
+            e.printStackTrace();
+            System.out.println(e.toString());
+            return Status.FAILURE;
         }
     }
 
@@ -814,8 +816,11 @@ public class DBUtils {
 //            blockchain.addNoFlush(mainChainBlock);
 
             return Status.SUCCESS;
+        } catch (Exception e) {
+            e.printStackTrace();
+            System.out.println(e.toString());
+            return Status.FAILURE;
         } finally{
-            blockchain.getRepository().close();
             LongLivedAvm.destroy();
         }
     }

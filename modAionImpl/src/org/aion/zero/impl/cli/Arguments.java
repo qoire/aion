@@ -169,23 +169,23 @@ public class Arguments {
 
     // data query
     @Option(
-        names = {"qb", "-q block", "--query block"},
+        names = {"qb", "--query-block"},
         arity = "1",
         paramLabel = "<block_number>",
         description = "retrieve block information")
     private String blockDetails = null;
 
     @Option(
-        names = {"qt", "-q tx", "--query tx"},
+        names = {"qt", "--query-tx"},
         arity = "1",
-        paramLabel = "<transaction hash>",
+        paramLabel = "<transaction_hash>",
         description = "retrieve transaction information")
     private String TransactionDetails = null;
 
     @Option(
-        names = {"qa", "-q account", "--query account"},
+        names = {"qa", "--query-account"},
         arity = "1",
-        paramLabel = "<account address>",
+        paramLabel = "<account_address>",
         description = "retrieve account information")
     private String AccountDetails = null;
 

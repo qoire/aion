@@ -28,7 +28,6 @@ import org.aion.mcf.config.CfgSync;
 import org.aion.util.bytes.ByteUtil;
 import org.aion.util.conversions.Hex;
 import org.aion.vm.LongLivedAvm;
-import org.aion.vm.exception.VMException;
 import org.aion.zero.impl.Version;
 import org.aion.zero.impl.config.Network;
 import org.aion.zero.impl.db.DBUtils;
@@ -613,7 +612,7 @@ public class Cli {
         }
     }
 
-    private DBUtils.Status getBlockDetails(String blockNumber) throws VMException {
+    private DBUtils.Status getBlockDetails(String blockNumber) {
         long block;
 
         try {
@@ -627,7 +626,7 @@ public class Cli {
         return DBUtils.queryBlock(block);
     }
 
-    private DBUtils.Status getTransactionDetails(String txHash) throws VMException {
+    private DBUtils.Status getTransactionDetails(String txHash) {
         byte[] hash;
 
         try {
@@ -992,6 +991,15 @@ public class Cli {
         if (options.isInfo()) {
             return TaskPriority.INFO;
         }
+        if (options.getBlockDetails() != null) {
+            return TaskPriority.QUERY_BLOCK;
+        }
+        if (options.getTransactionDetails() != null) {
+            return TaskPriority.QUERY_TX;
+        }
+        if (options.getAccountDetails() != null) {
+            return TaskPriority.QUERY_ACCOUNT;
+        }
         if (options.isCreateAccount()) {
             return TaskPriority.CREATE_ACCOUNT;
         }
@@ -1034,15 +1042,6 @@ public class Cli {
         if (options.isRedoImport() != null) {
             return TaskPriority.REDO_IMPORT;
         }
-        if (options.getBlockDetails() != null) {
-            return TaskPriority.QUERY_BLOCK;
-        }
-        if (options.getTransactionDetails() != null) {
-            return TaskPriority.QUERY_TX;
-        }
-        if (options.getAccountDetails() != null) {
-            return TaskPriority.CREATE_ACCOUNT;
-        }
 
         return TaskPriority.NONE;
     }
@@ -1076,6 +1075,18 @@ public class Cli {
         }
         if (breakingTaskPriority.compareTo(TaskPriority.INFO) < 0 && options.isInfo()) {
             skippedTasks.add("--info");
+        }
+        if (breakingTaskPriority.compareTo(TaskPriority.QUERY_BLOCK) < 0
+            && options.getBlockDetails() != null) {
+            skippedTasks.add("--query-block");
+        }
+        if (breakingTaskPriority.compareTo(TaskPriority.QUERY_TX) < 0
+            && options.getTransactionDetails() != null) {
+            skippedTasks.add("--query-tx");
+        }
+        if (breakingTaskPriority.compareTo(TaskPriority.QUERY_ACCOUNT) < 0
+            && options.getAccountDetails() != null) {
+            skippedTasks.add("--query-account");
         }
         if (breakingTaskPriority.compareTo(TaskPriority.CREATE_ACCOUNT) < 0
                 && options.isCreateAccount()) {
@@ -1131,18 +1142,7 @@ public class Cli {
                 && options.isRedoImport() != null) {
             skippedTasks.add("--redo-import");
         }
-        if (breakingTaskPriority.compareTo(TaskPriority.QUERY_BLOCK) < 0
-            && options.getBlockDetails() != null) {
-            skippedTasks.add("--query block");
-        }
-        if (breakingTaskPriority.compareTo(TaskPriority.QUERY_TX) < 0
-            && options.getTransactionDetails() != null) {
-            skippedTasks.add("--query tx");
-        }
-        if (breakingTaskPriority.compareTo(TaskPriority.QUERY_ACCOUNT) < 0
-            && options.getAccountDetails() != null) {
-            skippedTasks.add("--query account");
-        }
+
         return skippedTasks;
     }
 
