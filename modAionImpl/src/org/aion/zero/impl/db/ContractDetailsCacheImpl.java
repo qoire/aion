@@ -5,10 +5,10 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Objects;
-import org.aion.types.AionAddress;
 import org.aion.interfaces.db.ByteArrayKeyValueStore;
 import org.aion.interfaces.db.ContractDetails;
 import org.aion.interfaces.db.InternalVmType;
+import org.aion.types.AionAddress;
 import org.aion.vm.api.types.ByteArrayWrapper;
 
 /** Contract details cache implementation. */
@@ -108,8 +108,6 @@ public class ContractDetailsCacheImpl extends AbstractContractDetails {
     public void setVmType(InternalVmType vmType) {
         if (this.vmType != vmType && vmType != InternalVmType.EITHER) {
             this.vmType = vmType;
-
-            setDirty(true);
         }
     }
 
@@ -212,7 +210,7 @@ public class ContractDetailsCacheImpl extends AbstractContractDetails {
         }
 
         // passing on the vm type
-        if (vmType != InternalVmType.EITHER) {
+        if (vmType != InternalVmType.EITHER && vmType != InternalVmType.UNKNOWN) {
             origContract.setVmType(vmType);
         }
 
@@ -243,7 +241,7 @@ public class ContractDetailsCacheImpl extends AbstractContractDetails {
 
     /** This method is not supported. */
     @Override
-    public ContractDetails getSnapshotTo(byte[] hash) {
+    public ContractDetails getSnapshotTo(byte[] hash, InternalVmType vm) {
         throw new UnsupportedOperationException("No snapshot option during cache state");
     }
 

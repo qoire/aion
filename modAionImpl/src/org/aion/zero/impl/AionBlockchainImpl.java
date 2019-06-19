@@ -33,7 +33,6 @@ import org.aion.equihash.EquihashMiner;
 import org.aion.evtmgr.IEvent;
 import org.aion.evtmgr.IEventMgr;
 import org.aion.evtmgr.impl.evt.EventBlock;
-import org.aion.interfaces.db.InternalVmType;
 import org.aion.interfaces.db.Repository;
 import org.aion.interfaces.db.RepositoryCache;
 import org.aion.log.AionLoggerFactory;
@@ -1031,6 +1030,8 @@ public class AionBlockchainImpl implements IAionBlockchain {
     }
 
     public AionBlockSummary add(AionBlock block, boolean rebuild) {
+        // reset cached VMs before processing the block
+        repository.clearCachedVMs();
 
         if (!isValid(block)) {
             LOG.error("Attempting to add {} block.", (block == null ? "NULL" : "INVALID"));
@@ -1100,6 +1101,9 @@ public class AionBlockchainImpl implements IAionBlockchain {
 
         // update corresponding account with the new balance
         track.flush();
+        if (summary != null) {
+            repository.commitCachedVMs(block.getHashWrapper());
+        }
 
         if (rebuild) {
             for (int i = 0; i < receipts.size(); i++) {
@@ -1115,30 +1119,6 @@ public class AionBlockchainImpl implements IAionBlockchain {
                         block.getNumber(),
                         block.getShortHash(),
                         getTotalDifficulty());
-        }
-
-        if (summary != null) {
-            // save contract creation data to index database
-            for (AionTxReceipt receipt : receipts) {
-                AionTransaction tx = receipt.getTransaction();
-                if (tx.isContractCreationTransaction() && receipt.isSuccessful()) {
-                    AccountState accountState = track.getAccountState(tx.getContractAddress());
-                    if (accountState == null) {
-                        // technically this cannot occur
-                        // if it does occur, the code below will throw and NPE
-                        LOG.error(
-                                "Kernel corruption: The account state of a newly added contract cannot be null.");
-                    }
-                    repository.saveIndexedContractInformation(
-                            tx.getContractAddress(),
-                            ByteArrayWrapper.wrap(accountState.getCodeHash()),
-                            block.getHashWrapper(),
-                            TransactionTypeRule.isValidAVMContractDeployment(tx.getTargetVM())
-                                    ? InternalVmType.AVM
-                                    : InternalVmType.FVM,
-                            true);
-                }
-            }
         }
 
         return summary;

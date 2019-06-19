@@ -7,6 +7,7 @@ import java.util.Optional;
 import org.aion.interfaces.block.BlockHeader;
 import org.aion.interfaces.db.ByteArrayKeyValueDatabase;
 import org.aion.interfaces.db.ContractDetails;
+import org.aion.interfaces.db.InternalVmType;
 import org.aion.interfaces.db.RepositoryConfig;
 import org.aion.interfaces.tx.Transaction;
 import org.aion.mcf.trie.JournalPruneDataSource;
@@ -51,12 +52,12 @@ public class DetailsDataStore<
     /**
      * Fetches the ContractDetails from the cache, and if it doesn't exist, add to the remove set.
      *
-     * @param key
+     * @param key the contract address as bytes
+     * @param vm the virtual machine used at contract deployment
      * @return
      */
-    public synchronized ContractDetails get(byte[] key) {
+    public synchronized ContractDetails get(InternalVmType vm, byte[] key) {
 
-        ByteArrayWrapper wrappedKey = wrap(key);
         Optional<byte[]> rawDetails = detailsSrc.get(key);
 
         // If it doesn't exist in cache or database.
@@ -68,6 +69,7 @@ public class DetailsDataStore<
         ContractDetails detailsImpl = repoConfig.contractDetailsImpl();
         detailsImpl.setDataSource(storageDSPrune);
         detailsImpl.setObjectGraphSource(graphSrc);
+        detailsImpl.setVmType(vm);
         detailsImpl.decode(rawDetails.get()); // We can safely get as we checked
         // if it is present.
 
