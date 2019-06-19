@@ -1034,6 +1034,7 @@ public class AionBlockchainImpl implements IAionBlockchain {
 
         if (!isValid(block)) {
             LOG.error("Attempting to add {} block.", (block == null ? "NULL" : "INVALID"));
+            repository.clearCachedVMs();
             return null;
         }
 
@@ -1043,11 +1044,15 @@ public class AionBlockchainImpl implements IAionBlockchain {
         // (if not reconstructing old blocks) keep chain continuity
         if (!rebuild && !Arrays.equals(bestBlock.getHash(), block.getParentHash())) {
             LOG.error("Attempting to add NON-SEQUENTIAL block.");
+            repository.clearCachedVMs();
             return null;
         }
 
         AionBlockSummary summary = processBlock(block);
         List<AionTxReceipt> receipts = summary.getReceipts();
+
+        // the cached VMs are required only during block processing
+        repository.clearCachedVMs();
 
         // Sanity checks
         byte[] receiptHash = block.getReceiptsRoot();
