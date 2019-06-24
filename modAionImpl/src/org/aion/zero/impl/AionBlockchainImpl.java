@@ -1924,6 +1924,7 @@ public class AionBlockchainImpl implements IAionBlockchain {
         return repo.isValidRoot(block.getStateRoot());
     }
 
+
     @Override
     public synchronized boolean recoverIndexEntry(Repository repository, AionBlock block) {
         if (block == null) {

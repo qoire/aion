@@ -25,6 +25,7 @@ import org.aion.mcf.account.Keystore;
 import org.aion.mcf.config.Cfg;
 import org.aion.mcf.config.CfgSsl;
 import org.aion.mcf.config.CfgSync;
+import org.aion.types.AionAddress;
 import org.aion.util.bytes.ByteUtil;
 import org.aion.util.conversions.Hex;
 import org.aion.vm.LongLivedAvm;
@@ -342,7 +343,8 @@ public class Cli {
 
             if (options.getTransactionDetails() != null) {
                 if (SUCCESS != getTransactionDetails(options.getTransactionDetails())) {
-                    System.out.println("Invalid transaction query! Please check your input argument.");
+                    System.out.println(
+                            "Invalid transaction query! Please check your input argument.");
                     return ERROR;
                 } else {
                     return EXIT;
@@ -351,8 +353,15 @@ public class Cli {
 
             // TODO: implement it when the worldstate setRoot has been fixed.
             if (options.getAccountDetails() != null) {
-                System.out.println("Function has not been implemented yet.");
-                return EXIT;
+                //System.out.println("Function has not been implemented yet.");
+                //return EXIT;
+                if (SUCCESS != getAccountDetails(options.getAccountDetails())) {
+                    System.out.println(
+                            "Invalid account query! Please check your input argument.");
+                    return ERROR;
+                } else {
+                    return EXIT;
+                }
             }
 
             if (options.isCreateAccount()) {
@@ -619,7 +628,7 @@ public class Cli {
             block = Long.parseLong(blockNumber);
         } catch (NumberFormatException e) {
             System.out.println(
-                "The given argument «" + blockNumber + "» cannot be converted to a number.");
+                    "The given argument «" + blockNumber + "» cannot be converted to a number.");
             return DBUtils.Status.ILLEGAL_ARGUMENT;
         }
 
@@ -633,11 +642,29 @@ public class Cli {
             hash = ByteUtil.hexStringToBytes(txHash);
         } catch (NumberFormatException e) {
             System.out.println(
-                "The given argument «" + txHash + "» cannot be converted to a valid transaction hash.");
+                    "The given argument «"
+                            + txHash
+                            + "» cannot be converted to a valid transaction hash.");
             return DBUtils.Status.ILLEGAL_ARGUMENT;
         }
 
         return DBUtils.queryTransaction(hash);
+    }
+
+    private DBUtils.Status getAccountDetails(String strAddress) {
+        AionAddress address;
+
+        try {
+            address = new AionAddress(ByteUtil.hexStringToBytes(strAddress));
+        } catch (NumberFormatException e) {
+            System.out.println(
+                    "The given argument «"
+                            + strAddress
+                            + "» cannot be converted to a valid account address.");
+            return DBUtils.Status.ILLEGAL_ARGUMENT;
+        }
+
+        return DBUtils.queryAccount(address);
     }
 
     /**
@@ -1077,15 +1104,15 @@ public class Cli {
             skippedTasks.add("--info");
         }
         if (breakingTaskPriority.compareTo(TaskPriority.QUERY_BLOCK) < 0
-            && options.getBlockDetails() != null) {
+                && options.getBlockDetails() != null) {
             skippedTasks.add("--query-block");
         }
         if (breakingTaskPriority.compareTo(TaskPriority.QUERY_TX) < 0
-            && options.getTransactionDetails() != null) {
+                && options.getTransactionDetails() != null) {
             skippedTasks.add("--query-tx");
         }
         if (breakingTaskPriority.compareTo(TaskPriority.QUERY_ACCOUNT) < 0
-            && options.getAccountDetails() != null) {
+                && options.getAccountDetails() != null) {
             skippedTasks.add("--query-account");
         }
         if (breakingTaskPriority.compareTo(TaskPriority.CREATE_ACCOUNT) < 0

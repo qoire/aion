@@ -9,10 +9,13 @@ import java.util.List;
 import java.util.Map;
 import org.aion.interfaces.block.Block;
 import org.aion.interfaces.db.ContractDetails;
+import org.aion.interfaces.db.Repository;
 import org.aion.log.AionLoggerFactory;
 import org.aion.mcf.config.CfgDb;
+import org.aion.mcf.core.AccountState;
 import org.aion.mcf.core.ImportResult;
 import org.aion.mcf.db.IBlockStoreBase;
+import org.aion.types.AionAddress;
 import org.aion.util.conversions.Hex;
 import org.aion.util.types.AddressUtils;
 import org.aion.vm.LongLivedAvm;
@@ -245,7 +248,8 @@ public class DBUtils {
                         writer.newLine();
 
                         ContractDetails details =
-                                repository.getContractDetails(AddressUtils.wrapAddress(otherParameters[i]));
+                                repository.getContractDetails(
+                                        AddressUtils.wrapAddress(otherParameters[i]));
 
                         if (details != null) {
                             writer.append("Details: " + Hex.toHexString(details.getEncoded()));
@@ -257,7 +261,8 @@ public class DBUtils {
                                                     repository.dumpImportableStorage(
                                                             details.getStorageHash(),
                                                             Integer.MAX_VALUE,
-                                                            AddressUtils.wrapAddress(otherParameters[i]))));
+                                                            AddressUtils.wrapAddress(
+                                                                    otherParameters[i]))));
                             writer.newLine();
                         }
                         writer.newLine();
@@ -707,9 +712,7 @@ public class DBUtils {
         System.out.println("Importing stored blocks COMPLETE.");
     }
 
-    /**
-     * @implNote Used by the CLI call.
-     */
+    /** @implNote Used by the CLI call. */
     public static Status queryTransaction(byte[] txHash) {
         // ensure mining is disabled
         CfgAion cfg = CfgAion.inst();
@@ -720,7 +723,7 @@ public class DBUtils {
         // get the current blockchain
         AionBlockchainImpl blockchain = AionBlockchainImpl.inst();
 
-        try  {
+        try {
             List<AionTxInfo> txInfoList = blockchain.getTransactionStore().get(txHash);
 
             if (txInfoList == null || txInfoList.isEmpty()) {
@@ -732,16 +735,19 @@ public class DBUtils {
 
                 AionBlock block = blockchain.getBlockStore().getBlockByHash(info.getBlockHash());
                 if (block == null) {
-                    System.out.println("Can not find the block data with given block hash of the transaction info.");
-                    System.out.println("The database might corruption. Please consider to re-import the db by ./aion.sh -n <network> --redo-import");
+                    System.out.println(
+                            "Can not find the block data with given block hash of the transaction info.");
+                    System.out.println(
+                            "The database might corruption. Please consider to re-import the db by ./aion.sh -n <network> --redo-import");
                     return Status.FAILURE;
                 }
 
-                AionTransaction tx =  block.getTransactionsList().get(info.getIndex());
+                AionTransaction tx = block.getTransactionsList().get(info.getIndex());
 
                 if (tx == null) {
                     System.out.println("Can not find the transaction data with given hash.");
-                    System.out.println("The database might corruption. Please consider to re-import the db by ./aion.sh -n <network> --redo-import");
+                    System.out.println(
+                            "The database might corruption. Please consider to re-import the db by ./aion.sh -n <network> --redo-import");
                     return Status.FAILURE;
                 }
 
@@ -758,21 +764,22 @@ public class DBUtils {
         }
     }
 
-    /**
-     * @implNote Used by the CLI call.
-     */
+    /** @implNote Used by the CLI call. */
     public static Status queryBlock(long nbBlock) {
         // ensure mining is disabled
         CfgAion cfg = CfgAion.inst();
         cfg.dbFromXML();
         cfg.getConsensus().setMining(false);
 
-        AionLoggerFactory.init(new HashMap<>());
+        Map<String, String> logs = new HashMap<>();
+        // TODO: add this log inside methods of interest
+        logs.put("QBCLI", "DEBUG");
+        AionLoggerFactory.init(logs);
 
         // get the current blockchain
         AionBlockchainImpl blockchain = AionBlockchainImpl.inst();
 
-        try  {
+        try {
             LongLivedAvm.createAndStartLongLivedAvm();
             List<AionBlock> blocks = blockchain.getBlockStore().getAllChainBlockByNumber(nbBlock);
 
@@ -792,35 +799,83 @@ public class DBUtils {
                 System.out.println();
             }
 
-            //Now print the transaction state. Only for the mainchain.
+            // Now print the transaction state. Only for the mainchain.
 
-// TODO: the worldstate can not read the data after the stateroot has been setup, need to fix the issue first then the tooling can print the states between the block.
+            // TODO: the worldstate can not read the data after the stateroot has been setup, need
+            // to fix the issue first then the tooling can print the states between the block.
 
-//            AionBlock mainChainBlock = blockchain.getBlockStore().getChainBlockByNumber(nbBlock);
-//            if (mainChainBlock == null) {
-//                System.out.println("Can not find the mainchain block with given block height.");
-//                return Status.FAILURE;
-//            }
-//
-//            AionBlock parentBlock = blockchain.getBlockByHash(mainChainBlock.getParentHash());
-//            if (parentBlock == null) {
-//                System.out.println("Can not find the parent block with given block height.");
-//                return Status.FAILURE;
-//            }
-//
-//            blockchain.getRepository().setRoot(parentBlock.getStateRoot());
-//
-//            Repository repo = blockchain.getRepository().getSnapshotTo(parentBlock.getStateRoot());
-//            blockchain.setRepository((AionRepositoryImpl) repo);
-//            blockchain.setBestBlock(parentBlock);
-//            blockchain.addNoFlush(mainChainBlock);
+            AionBlock mainChainBlock = blockchain.getBlockStore().getChainBlockByNumber(nbBlock);
+            if (mainChainBlock == null) {
+                System.out.println("Can not find the main chain block with given block height.");
+                return Status.FAILURE;
+            }
+
+            AionBlock parentBlock = blockchain.getBlockByHash(mainChainBlock.getParentHash());
+            if (parentBlock == null) {
+                System.out.println("Can not find the parent block with given block height.");
+                return Status.FAILURE;
+            }
+
+            AionRepositoryImpl repository =
+                    (AionRepositoryImpl)
+                            blockchain
+                                    .getRepository()
+                                    .getSnapshotTo(blockchain.getRepository().getRoot());
+            blockchain.setRepository(repository);
+            blockchain.setBestBlock(parentBlock);
+            // TODO: log to QBCLI info that we want printed out
+            Pair<ImportResult, AionBlockSummary> result =
+                    blockchain.tryToConnectAndFetchSummary(
+                            mainChainBlock, System.currentTimeMillis() / 1000, false);
+            System.out.println("Import result: " + result.getLeft());
+            // TODO: add toString for AionBlockSummary
+            System.out.println("Block summary: " + result.getRight());
+
+            // TODO: alternative to logging is to use the TrieImpl.scanTreeDiffLoop
 
             return Status.SUCCESS;
         } catch (Exception e) {
             e.printStackTrace();
             System.out.println(e.toString());
             return Status.FAILURE;
-        } finally{
+        } finally {
+            LongLivedAvm.destroy();
+        }
+    }
+
+    /** @implNote Used by the CLI call. */
+    // TODO: more parameters would be useful, e.g. get account X at block Y
+    public static Status queryAccount(AionAddress address) {
+        // ensure mining is disabled
+        CfgAion cfg = CfgAion.inst();
+        cfg.dbFromXML();
+        cfg.getConsensus().setMining(false);
+
+        AionLoggerFactory.init(new HashMap<>());
+
+        // get the current blockchain
+        AionBlockchainImpl blockchain = AionBlockchainImpl.inst();
+
+        try {
+            LongLivedAvm.createAndStartLongLivedAvm();
+
+            Repository<AccountState, IBlockStoreBase> repository =
+                    blockchain
+                            .getRepository()
+                            .getSnapshotTo(blockchain.getRepository().getRoot())
+                            .startTracking();
+
+            AccountState account = repository.getAccountState(address);
+            System.out.println(account);
+
+            // TODO: Needs checks to see if it's actually a contract
+            System.out.println(repository.getContractDetails(address));
+
+            return Status.SUCCESS;
+        } catch (Exception e) {
+            e.printStackTrace();
+            return Status.FAILURE;
+        } finally {
             LongLivedAvm.destroy();
         }
     }
