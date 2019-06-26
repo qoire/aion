@@ -1,18 +1,16 @@
 package org.aion.vm;
 
-import static org.aion.crypto.HashUtil.EMPTY_TRIE_HASH;
 import static org.aion.mcf.valid.TransactionTypeRule.isValidAVMContractDeployment;
 
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import org.aion.interfaces.db.InternalVmType;
 import org.aion.interfaces.db.RepositoryCache;
 import org.aion.mcf.core.AccountState;
 import org.aion.mcf.db.IBlockStoreBase;
-import org.aion.precompiled.ContractFactory;
 import org.aion.types.AionAddress;
+import org.aion.util.conversions.Hex;
 import org.aion.vm.exception.VMException;
 import org.aion.zero.types.AionTransaction;
 import org.aion.zero.types.AionTxExecSummary;
@@ -162,6 +160,12 @@ public final class BulkExecutor {
                 AionTransaction[] avmTransactions =
                         new AionTransaction[avmTransactionsToExecute.size()];
                 avmTransactionsToExecute.toArray(avmTransactions);
+                System.out.println(
+                        "AVM size: "
+                                + avmTransactionsToExecute.size()
+                                + " tx = "
+                                + Hex.toHexString(
+                                        avmTransactionsToExecute.get(0).getTransactionHash()));
 
                 // Execute the avm transactions.
                 currentBatchOfSummaries =
@@ -183,6 +187,12 @@ public final class BulkExecutor {
                 AionTransaction[] fvmTransactions =
                         new AionTransaction[fvmTransactionsToExecute.size()];
                 fvmTransactionsToExecute.toArray(fvmTransactions);
+                System.out.println(
+                        "FVM size: "
+                                + fvmTransactionsToExecute.size()
+                                + " tx = "
+                                + Hex.toHexString(
+                                        fvmTransactionsToExecute.get(0).getTransactionHash()));
 
                 // Execute the fvm transactions.
                 currentBatchOfSummaries =
@@ -265,23 +275,7 @@ public final class BulkExecutor {
             return isValidAVMContractDeployment(transaction.getTargetVM());
         } else {
             AionAddress destination = transaction.getDestinationAddress();
-            return !isContractAddress(repository, destination)
-                    || isAllowedByAVM(repository, destination);
-        }
-    }
-
-    /** Returns true only if address is a contract. */
-    private static boolean isContractAddress(RepositoryCache repository, AionAddress address) {
-        if (ContractFactory.isPrecompiledContract(address)) {
-            return true;
-        } else {
-            RepositoryCache cache = repository.startTracking();
-            byte[] code = cache.getCode(address);
-            // some contracts may have storage before they have code
-            // TODO: need unit tests for both cases
-            byte[] storage = ((AccountState) cache.getAccountState(address)).getStateRoot();
-            return ((code != null) && (code.length > 0)
-                    || (!Arrays.equals(storage, EMPTY_TRIE_HASH)));
+            return isAllowedByAVM(repository, destination);
         }
     }
 
@@ -295,7 +289,7 @@ public final class BulkExecutor {
             // the address doesn't exist yet, so it can be used by either vm
             vm = InternalVmType.EITHER;
         } else {
-            vm = repository.getVMUsed(destination, accountState.getCodeHash());
+            vm = track.getVMUsed(destination, accountState.getCodeHash());
 
             // UNKNOWN is returned when there was no contract information stored
             if (vm == InternalVmType.UNKNOWN) {
