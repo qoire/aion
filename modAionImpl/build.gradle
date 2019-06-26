@@ -34,6 +34,8 @@ dependencies {
     compile 'org.json:json:20180813'
     compile 'info.picocli:picocli:3.6.1'
     compile files("${rootProject.projectDir}/lib/aion-types-d6eb8f7.jar")
+    compile files('../lib/org-aion-avm-api.jar')
+    compile files('../lib/org-aion-avm-userlib.jar')
 
     testCompile project(path: ':modTxPoolImpl')
     testCompile project(path: ':modDbImpl', configuration: 'testClassesOut')
@@ -45,7 +47,6 @@ dependencies {
  //   compile group: 'org.ow2.asm', name: 'asm-util', version: '6.2.1'
 
     testCompile files('../lib/org-aion-avm-tooling.jar')
-    testCompile files('../lib/org-aion-avm-api.jar')
     testCompile files('../lib/org-aion-avm-userlib.jar')
 
     //testCompile 'network.aion:crypto4j:0.4.0'

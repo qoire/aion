@@ -28,6 +28,8 @@ module aion.zero.impl {
     requires jdk.management;
     requires java.xml;
     requires aion.types;
+    requires org.aion.avm.api;
+    requires org.aion.avm.userlib;
 
     exports org.aion.equihash;
     exports org.aion.zero.impl.blockchain;
