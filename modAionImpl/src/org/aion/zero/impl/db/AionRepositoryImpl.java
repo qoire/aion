@@ -50,6 +50,7 @@ import org.aion.zero.impl.types.AionTxInfo;
 import org.aion.zero.types.A0BlockHeader;
 import org.aion.zero.types.AionTransaction;
 import org.aion.zero.types.AionTxReceipt;
+import org.apache.commons.lang3.tuple.Pair;
 
 /** Has direct database connection. */
 public class AionRepositoryImpl
@@ -199,11 +200,9 @@ public class AionRepositoryImpl
 
                     cachedContractIndex.put(
                             contractDetails.getAddress(),
-                            new ContractInformation(
+                            Pair.of(
                                     ByteArrayWrapper.wrap(accountState.getCodeHash()),
-                                    contractDetails.getVmType(),
-                                    null,
-                                    false));
+                                    contractDetails.getVmType()));
 
                     if (LOG.isTraceEnabled()) {
                         LOG.trace(
@@ -1111,7 +1110,34 @@ public class AionRepositoryImpl
         }
     }
 
-    private Map<AionAddress, ContractInformation> cachedContractIndex = new HashMap<>();
+    private Map<AionAddress, Pair<ByteArrayWrapper, InternalVmType>> cachedContractIndex =
+            new HashMap<>();
+
+    /** Indexes the contract information. */
+    public void commitCachedVMs(ByteArrayWrapper inceptionBlock) {
+        for (Map.Entry<AionAddress, Pair<ByteArrayWrapper, InternalVmType>> entry :
+                cachedContractIndex.entrySet()) {
+
+            AionAddress contract = entry.getKey();
+            ByteArrayWrapper codeHash = entry.getValue().getLeft();
+            InternalVmType vm = entry.getValue().getRight();
+
+            // write only if not already stored
+            ContractInformation ci = getIndexedContractInformation(contract);
+            if (ci == null || ci.getVmUsed(codeHash.toBytes()) == InternalVmType.UNKNOWN) {
+                saveIndexedContractInformation(contract, codeHash, inceptionBlock, vm, true);
+            } else {
+                if (ci != null && ci.getVmUsed(codeHash.toBytes()) != vm) {
+                    // possibly same code hash for AVM and FVM
+                    LOG.error(
+                            "The stored VM type does not match the cached VM type for the contract {} with code hash {}.",
+                            contract,
+                            codeHash);
+                }
+            }
+        }
+        cachedContractIndex.clear();
+    }
 
     /**
      * Called by the blockchain after the current block has been fully processed and before the
@@ -1130,7 +1156,7 @@ public class AionRepositoryImpl
         } else {
             if (cachedContractIndex.containsKey(contract)) {
                 // block has not been committed yet
-                return cachedContractIndex.get(contract).getVmUsed(codeHash);
+                return cachedContractIndex.get(contract).getRight();
             } else {
                 ContractInformation ci = getIndexedContractInformation(contract);
                 if (ci == null) {
