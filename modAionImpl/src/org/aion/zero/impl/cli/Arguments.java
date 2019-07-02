@@ -180,14 +180,14 @@ public class Arguments {
         arity = "1",
         paramLabel = "<transaction_hash>",
         description = "retrieve transaction information")
-    private String TransactionDetails = null;
+    private String transactionDetails = null;
 
     @Option(
         names = {"qa", "--query-account"},
         arity = "1",
         paramLabel = "<account_address>",
         description = "retrieve account information")
-    private String AccountDetails = null;
+    private String accountDetails = null;
 
     /** Compacts the account options into specific commands. */
     public static String[] preProcess(String[] arguments) {
@@ -307,9 +307,9 @@ public class Arguments {
 
     public String getBlockDetails() { return blockDetails; }
 
-    public String getTransactionDetails() { return TransactionDetails; }
+    public String getTransactionDetails() { return transactionDetails; }
 
-    public String getAccountDetails() { return AccountDetails; }
+    public String getAccountDetails() { return accountDetails; }
 
 
 }

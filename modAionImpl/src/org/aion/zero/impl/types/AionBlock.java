@@ -370,8 +370,8 @@ public class AionBlock extends AbstractBlock<A0BlockHeader, AionTransaction> imp
             toStringBuff.append("  Txs [\n");
             int index = 0;
             for (AionTransaction tx : getTransactionsList()) {
-                toStringBuff.append("    ").append("index=").append(++index).append("\n")
-                    .append(tx).append("\n\n");
+                toStringBuff.append("  ").append("index=").append(index++).append("\n")
+                    .append(tx).append("\n");
             }
             toStringBuff.append("  ]\n");
         } else {
