@@ -33,6 +33,7 @@ import java.math.BigInteger;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
+import org.aion.avm.core.ExecutionType;
 import org.aion.crypto.ECKey;
 import org.aion.interfaces.db.RepositoryCache;
 import org.aion.log.AionLoggerFactory;
@@ -801,6 +802,6 @@ public class OpcodeIntegTest {
     private AionTxExecSummary executeTransaction(
             AionTransaction tx, IAionBlock block, RepositoryCache repo) throws VMException {
         return BulkExecutor.executeTransactionWithNoPostExecutionWork(
-                block, tx, repo, false, true, false, false, LOGGER_VM);
+                block, tx, repo, false, true, false, false, LOGGER_VM, ExecutionType.TESTING);
     }
 }

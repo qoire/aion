@@ -32,6 +32,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import org.aion.avm.core.ExecutionType;
 import org.aion.crypto.ECKeyFac;
 import org.aion.interfaces.db.InternalVmType;
 import org.aion.interfaces.db.Repository;
@@ -284,6 +285,14 @@ public class OldTxExecutorTest {
     private AionTxExecSummary executeTransaction(
             Repository repo, IAionBlock block, AionTransaction transaction) throws VMException {
         return BulkExecutor.executeTransactionWithNoPostExecutionWork(
-                block, transaction, repo.startTracking(), false, true, false, false, LOGGER_VM);
+                block,
+                transaction,
+                repo.startTracking(),
+                false,
+                true,
+                false,
+                false,
+                LOGGER_VM,
+                ExecutionType.TESTING);
     }
 }

@@ -21,6 +21,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
+import org.aion.avm.core.ExecutionType;
 import org.aion.evtmgr.IEvent;
 import org.aion.evtmgr.IEventMgr;
 import org.aion.evtmgr.IHandler;
@@ -1095,7 +1096,8 @@ public class AionPendingStateImpl implements IPendingStateInternal<AionBlock, Ai
                     incrementSenderNonce,
                     fork040Enable,
                     checkBlockEnergyLimit,
-                    LOGGER_VM);
+                    LOGGER_VM,
+                    ExecutionType.TESTING);
         } catch (VMException e) {
             LOGGER_VM.error("Shutdown due to a VM fatal error.", e);
             System.exit(-1);

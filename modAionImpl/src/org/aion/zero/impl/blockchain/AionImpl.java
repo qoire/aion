@@ -3,6 +3,7 @@ package org.aion.zero.impl.blockchain;
 import java.math.BigInteger;
 import java.util.List;
 import java.util.Optional;
+import org.aion.avm.core.ExecutionType;
 import org.aion.crypto.ECKey;
 import org.aion.crypto.ECKeyFac;
 import org.aion.equihash.EquihashMiner;
@@ -144,7 +145,8 @@ public class AionImpl implements IAionChain {
                             incrementSenderNonce,
                             fork040enabled,
                             checkBlockEnergyLimit,
-                            LOG_VM)
+                            LOG_VM,
+                            ExecutionType.ETH_CALL)
                     .getReceipt()
                     .getEnergyUsed();
         } catch (VMException e) {
@@ -181,7 +183,8 @@ public class AionImpl implements IAionChain {
                             incrementSenderNonce,
                             fork040enabled,
                             checkBlockEnergyLimit,
-                            LOG_VM)
+                            LOG_VM,
+                            ExecutionType.ETH_CALL)
                     .getReceipt();
         } catch (VMException e) {
             LOG_GEN.error("Shutdown due to a VM fatal error.", e);

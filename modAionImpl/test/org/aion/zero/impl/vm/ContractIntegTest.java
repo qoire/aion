@@ -39,6 +39,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
+import org.aion.avm.core.ExecutionType;
 import org.aion.avm.core.dappreading.JarBuilder;
 import org.aion.avm.userlib.CodeAndArguments;
 import org.aion.avm.userlib.abi.ABIEncoder;
@@ -171,7 +172,15 @@ public class ContractIntegTest {
 
         AionTxExecSummary summary =
                 BulkExecutor.executeTransactionWithNoPostExecutionWork(
-                        block, tx, repo, false, true, false, false, LOGGER_VM);
+                        block,
+                        tx,
+                        repo,
+                        false,
+                        true,
+                        false,
+                        false,
+                        LOGGER_VM,
+                        ExecutionType.TESTING);
         if (txType == TransactionTypes.DEFAULT) {
             assertEquals("", summary.getReceipt().getError()); // "" == SUCCESS
             AionAddress contract = tx.getContractAddress();
@@ -1924,7 +1933,7 @@ public class ContractIntegTest {
     private AionTxExecSummary executeTransaction(
             AionTransaction tx, IAionBlock block, RepositoryCache repo) throws VMException {
         return BulkExecutor.executeTransactionWithNoPostExecutionWork(
-                block, tx, repo, false, true, true, false, LOGGER_VM);
+                block, tx, repo, false, true, true, false, LOGGER_VM, ExecutionType.TESTING);
     }
 
     private AionBlock makeBlock(AionTransaction tx) {

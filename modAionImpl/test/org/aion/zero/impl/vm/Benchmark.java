@@ -32,6 +32,7 @@ import java.math.BigInteger;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import org.aion.avm.core.ExecutionType;
 import org.aion.crypto.ECKey;
 import org.aion.crypto.ECKeyFac;
 import org.aion.crypto.ECKeyFac.ECKeyType;
@@ -274,6 +275,6 @@ public class Benchmark {
     private static AionTxExecSummary executeTransaction(AionTransaction transaction)
             throws VMException {
         return BulkExecutor.executeTransactionWithNoPostExecutionWork(
-                block, transaction, repo, false, true, false, false, LOGGER);
+                block, transaction, repo, false, true, false, false, LOGGER, ExecutionType.TESTING);
     }
 }

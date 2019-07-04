@@ -4,6 +4,7 @@ import java.math.BigInteger;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import org.aion.avm.core.ExecutionType;
 import org.aion.avm.core.FutureResult;
 import org.aion.avm.core.IExternalState;
 import org.aion.interfaces.db.RepositoryCache;
@@ -21,7 +22,11 @@ import org.aion.util.bytes.ByteUtil;
 import org.aion.vm.api.interfaces.IExecutionLog;
 import org.aion.vm.api.interfaces.InternalTransactionInterface;
 import org.aion.vm.exception.VMException;
-import org.aion.zero.types.*;
+import org.aion.zero.types.AionInternalTx;
+import org.aion.zero.types.AionTransaction;
+import org.aion.zero.types.AionTxExecSummary;
+import org.aion.zero.types.AionTxReceipt;
+import org.aion.zero.types.IAionBlock;
 import org.slf4j.Logger;
 
 /**
@@ -58,6 +63,9 @@ public final class AvmTransactionExecutor {
      * @param isLocalCall Whether this is a local call or not.
      * @param initialBlockEnergyLimit The initial block energy limit at the time of running these
      *     transactions.
+     * @param executionType indicates to the AVM the purpose for the transaction execution
+     * @param cachedBlockNumber represents a main chain block that is common to the current main
+     *     chain and the block that is about to be imported used for cache retrieval
      * @return a list of transaction summaries pertaining to the transactions.
      */
     public static List<AionTxExecSummary> executeTransactions(
@@ -69,7 +77,9 @@ public final class AvmTransactionExecutor {
             boolean decrementBlockEnergyLimit,
             boolean allowNonceIncrement,
             boolean isLocalCall,
-            long initialBlockEnergyLimit)
+            long initialBlockEnergyLimit,
+            ExecutionType executionType,
+            long cachedBlockNumber)
             throws VMException {
 
         List<AionTxExecSummary> transactionSummaries = new ArrayList<>();
@@ -85,7 +95,8 @@ public final class AvmTransactionExecutor {
             // Acquire the avm lock and then run the transactions.
             Transaction[] avmTransactions = convertKernelTransactionsToAvm(transactions);
             avm.acquireAvmLock();
-            FutureResult[] resultsAsFutures = avm.run(kernel, avmTransactions);
+            FutureResult[] resultsAsFutures =
+                    avm.run(kernel, avmTransactions, executionType, cachedBlockNumber);
 
             // Process the results of the transactions.
             int index = 0;

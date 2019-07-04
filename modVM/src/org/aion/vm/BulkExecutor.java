@@ -7,6 +7,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
+import org.aion.avm.core.ExecutionType;
 import org.aion.interfaces.db.InternalVmType;
 import org.aion.interfaces.db.RepositoryCache;
 import org.aion.mcf.core.AccountState;
@@ -49,6 +50,11 @@ public final class BulkExecutor {
      *     transaction.
      * @param logger The logger.
      * @param postExecutionWork The post-execution work to apply after each transaction is run.
+     * @param executionType indicates to the AVM the purpose for the transaction execution (AVM
+     *     specific parameter)
+     * @param cachedBlockNumber represents a main chain block that is common to the current main
+     *     chain and the block that is about to be imported used for cache retrieval (AVM specific
+     *     parameter)
      */
     public static List<AionTxExecSummary> executeAllTransactionsInBlock(
             IAionBlock block,
@@ -58,7 +64,9 @@ public final class BulkExecutor {
             boolean fork040Enable,
             boolean checkBlockEnergyLimit,
             Logger logger,
-            PostExecutionWork postExecutionWork)
+            PostExecutionWork postExecutionWork,
+            ExecutionType executionType,
+            long cachedBlockNumber)
             throws VMException {
         if (block == null) {
             throw new NullPointerException("Cannot execute given a null block!");
@@ -82,7 +90,9 @@ public final class BulkExecutor {
                 checkBlockEnergyLimit,
                 incrementSenderNonce,
                 isLocalCall,
-                fork040Enable);
+                fork040Enable,
+                executionType,
+                cachedBlockNumber);
     }
 
     /**
@@ -100,6 +110,8 @@ public final class BulkExecutor {
      * @param checkBlockEnergyLimit Whether or not to check the block energy limit overflow per
      *     transaction.
      * @param logger The logger.
+     * @param executionType indicates to the AVM the purpose for the transaction execution (AVM
+     *     specific parameter)
      */
     public static AionTxExecSummary executeTransactionWithNoPostExecutionWork(
             IAionBlock block,
@@ -109,7 +121,8 @@ public final class BulkExecutor {
             boolean incrementSenderNonce,
             boolean fork040Enable,
             boolean checkBlockEnergyLimit,
-            Logger logger)
+            Logger logger,
+            ExecutionType executionType)
             throws VMException {
         if (block == null) {
             throw new NullPointerException("Cannot execute given a null block!");
@@ -130,7 +143,9 @@ public final class BulkExecutor {
                         checkBlockEnergyLimit,
                         incrementSenderNonce,
                         isLocalCall,
-                        fork040Enable)
+                        fork040Enable,
+                        executionType,
+                        block.getNumber())
                 .get(0);
     }
 
@@ -143,7 +158,9 @@ public final class BulkExecutor {
             boolean checkBlockEnergyLimit,
             boolean incrementSenderNonce,
             boolean isLocalCall,
-            boolean fork040enabled)
+            boolean fork040enabled,
+            ExecutionType executionType,
+            long cachedBlockNumber)
             throws VMException {
         List<AionTxExecSummary> allSummaries = new ArrayList<>();
 
@@ -174,7 +191,9 @@ public final class BulkExecutor {
                                 checkBlockEnergyLimit,
                                 incrementSenderNonce,
                                 isLocalCall,
-                                blockRemainingEnergy);
+                                blockRemainingEnergy,
+                                executionType,
+                                cachedBlockNumber);
             } else {
                 // Grab the next batch of fvm transactions to execute.
                 List<AionTransaction> fvmTransactionsToExecute =

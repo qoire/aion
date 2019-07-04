@@ -32,6 +32,7 @@ import java.io.IOException;
 import java.math.BigInteger;
 import java.util.Arrays;
 import java.util.Collections;
+import org.aion.avm.core.ExecutionType;
 import org.aion.crypto.ECKey;
 import org.aion.interfaces.db.RepositoryCache;
 import org.aion.log.AionLoggerFactory;
@@ -330,6 +331,14 @@ public class TransactionExecutorTest {
             RepositoryCache repo, BlockContext context, AionTransaction transaction)
             throws VMException {
         return BulkExecutor.executeTransactionWithNoPostExecutionWork(
-                context.block, transaction, repo, false, true, false, false, LOGGER_VM);
+                context.block,
+                transaction,
+                repo,
+                false,
+                true,
+                false,
+                false,
+                LOGGER_VM,
+                ExecutionType.TESTING);
     }
 }

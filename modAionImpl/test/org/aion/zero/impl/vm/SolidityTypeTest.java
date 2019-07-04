@@ -30,6 +30,7 @@ import java.math.BigInteger;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import org.aion.avm.core.ExecutionType;
 import org.aion.interfaces.db.InternalVmType;
 import org.aion.interfaces.db.RepositoryCache;
 import org.aion.log.AionLoggerFactory;
@@ -397,7 +398,7 @@ public class SolidityTypeTest {
     private AionTxExecSummary executeTransaction(
             AionTransaction tx, IAionBlock block, RepositoryCache repo) throws VMException {
         return BulkExecutor.executeTransactionWithNoPostExecutionWork(
-                block, tx, repo, false, true, false, false, LOGGER_VM);
+                block, tx, repo, false, true, false, false, LOGGER_VM, ExecutionType.TESTING);
     }
 
     private static AionBlock createDummyBlock() {

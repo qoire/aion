@@ -28,6 +28,8 @@ module aion.zero.impl {
     requires jdk.management;
     requires java.xml;
     requires aion.types;
+    // TODO: should we allow the added dependency or move the ExecutionType to aion_types?
+    requires org.aion.avm.core;
 
     exports org.aion.equihash;
     exports org.aion.zero.impl.blockchain;

@@ -28,6 +28,7 @@ import java.util.Set;
 import java.util.Stack;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
+import org.aion.avm.core.ExecutionType;
 import org.aion.crypto.HashUtil;
 import org.aion.equihash.EquihashMiner;
 import org.aion.evtmgr.IEvent;
@@ -153,6 +154,13 @@ public class AionBlockchainImpl implements IAionBlockchain {
     private IEventMgr evtMgr = null;
     private AbstractEnergyStrategyLimit energyLimitStrategy;
     private AtomicLong bestBlockNumber = new AtomicLong(0L);
+
+    // fields used to manage AVM caching
+    // TODO: if refactoring the add(Block) method, these should be used as parameters
+    private ExecutionType executionTypeForAVM = ExecutionType.ASSUME_MAINCHAIN;
+    private long cachedBlockNumberForAVM = 0L;
+    private static final long NO_FORK_LEVEL = -1L;
+    private long forkLevel = NO_FORK_LEVEL;
 
     private AionBlockchainImpl() {
         this(generateBCConfig(CfgAion.inst()), AionRepositoryImpl.inst(), new ChainConfiguration());
@@ -587,10 +595,8 @@ public class AionBlockchainImpl implements IAionBlockchain {
                         toHexString(block.getHash()));
             }
 
-            // main branch become this branch
-            // cause we proved that total difficulty
-            // is greater
-            getBlockStore().reBranch(block);
+            // main branch become this branch cause we proved that total difficulty is greater
+            forkLevel = getBlockStore().reBranch(block);
 
             // The main repository rebranch
             this.repository = savedState.savedRepo;
@@ -806,11 +812,40 @@ public class AionBlockchainImpl implements IAionBlockchain {
         final AionBlockSummary summary;
         if (bestBlock.isParentOf(block)) {
             repository.syncToRoot(bestBlock.getStateRoot());
+
+            // because the bestBlock is a parent this is the first block of its height
+            // unless there was a recent fork it's likely we will add a mainchain block
+            if (forkLevel == NO_FORK_LEVEL) {
+                executionTypeForAVM = ExecutionType.ASSUME_MAINCHAIN;
+                cachedBlockNumberForAVM = bestBlock.getNumber();
+            } else {
+                executionTypeForAVM = ExecutionType.SWITCHING_MAINCHAIN;
+                cachedBlockNumberForAVM = forkLevel;
+            }
+
             summary = add(block);
             ret = summary == null ? INVALID_BLOCK : IMPORTED_BEST;
+
+            if (ret == IMPORTED_BEST) {
+                // overwrite recent fork info after this
+                forkLevel = NO_FORK_LEVEL;
+            }
         } else {
             if (getBlockStore().isBlockExist(block.getParentHash())) {
                 BigInteger oldTotalDiff = getInternalTD();
+
+                // determine if the block parent is main chain or side chain
+                long parentHeight = block.getNumber() - 1; // inferred parent number
+                if (getBlockStore().isMainChain(block.getParentHash(), parentHeight)) {
+                    // main chain parent, therefore can use its number for getting the cache
+                    executionTypeForAVM = ExecutionType.ASSUME_SIDECHAIN;
+                    cachedBlockNumberForAVM = parentHeight;
+                } else {
+                    // side chain parent, therefore do not know the closes main chain block
+                    executionTypeForAVM = ExecutionType.ASSUME_DEEP_SIDECHAIN;
+                    cachedBlockNumberForAVM = 0;
+                }
+
                 summary = tryConnectAndFork(block);
                 ret =
                         summary == null
@@ -1317,7 +1352,9 @@ public class AionBlockchainImpl implements IAionBlockchain {
                                 fork040Enable,
                                 checkBlockEnergyLimit,
                                 LOGGER_VM,
-                                getPostExecutionWorkForGeneratePreBlock(repository));
+                                getPostExecutionWorkForGeneratePreBlock(repository),
+                                ExecutionType.MINING,
+                                bestBlock.getNumber());
 
                 for (AionTxExecSummary summary : executionSummaries) {
                     if (!summary.isRejected()) {
@@ -1370,7 +1407,9 @@ public class AionBlockchainImpl implements IAionBlockchain {
                                 fork040Enable,
                                 checkBlockEnergyLimit,
                                 LOGGER_VM,
-                                getPostExecutionWorkForApplyBlock(repository));
+                                getPostExecutionWorkForApplyBlock(repository),
+                                executionTypeForAVM,
+                                cachedBlockNumberForAVM);
 
                 for (AionTxExecSummary summary : executionSummaries) {
                     receipts.add(summary.getReceipt());

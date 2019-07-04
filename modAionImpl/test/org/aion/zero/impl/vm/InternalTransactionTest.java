@@ -30,6 +30,7 @@ import static org.junit.Assert.assertTrue;
 import java.math.BigInteger;
 import java.util.Collections;
 import java.util.List;
+import org.aion.avm.core.ExecutionType;
 import org.aion.crypto.ECKey;
 import org.aion.crypto.HashUtil;
 import org.aion.interfaces.db.RepositoryCache;
@@ -470,6 +471,7 @@ public class InternalTransactionTest {
                 true,
                 false,
                 false,
-                LOGGER_VM);
+                LOGGER_VM,
+                ExecutionType.TESTING);
     }
 }
