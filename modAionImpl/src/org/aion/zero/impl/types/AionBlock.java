@@ -4,6 +4,7 @@ import java.math.BigInteger;
 import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;
+import org.aion.mcf.types.exceptions.HeaderStructureException;
 import org.aion.types.AionAddress;
 import org.aion.log.AionLoggerFactory;
 import org.aion.log.LogEnum;
@@ -16,7 +17,6 @@ import org.aion.rlp.RLPList;
 import org.aion.vm.api.types.ByteArrayWrapper;
 import org.aion.util.bytes.ByteUtil;
 import org.aion.util.conversions.Hex;
-import org.aion.zero.exceptions.HeaderStructureException;
 import org.aion.zero.types.A0BlockHeader;
 import org.aion.zero.types.AionTransaction;
 import org.aion.zero.types.IAionBlock;
@@ -313,9 +313,11 @@ public class AionBlock extends AbstractBlock<A0BlockHeader, AionTransaction> imp
      * blockchain before handing it off to miner. This step is necessary to add post-execution
      * states:
      *
-     * <p>{@link A0BlockHeader#txTrieRoot} {@link A0BlockHeader#receiptTrieRoot} {@link
-     * A0BlockHeader#stateRoot} {@link A0BlockHeader#logsBloom} {@link this#transactionsList} {@link
-     * A0BlockHeader#energyConsumed}
+     * <p>{@link org.aion.mcf.types.AbstractBlockHeader#txTrieRoot} {@link
+     * org.aion.mcf.types.AbstractBlockHeader#receiptTrieRoot} {@link
+     * org.aion.mcf.types.AbstractBlockHeader#stateRoot} {@link
+     * org.aion.mcf.types.AbstractBlockHeader#logsBloom} {@link this#transactionsList} {@link
+     * org.aion.mcf.types.AbstractBlockHeader#energyConsumed}
      *
      * <p>The (as of now) unenforced contract by using this function is that the user should not
      * modify any fields set except for {@link A0BlockHeader#solution} after this function is

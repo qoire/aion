@@ -16,9 +16,9 @@ import org.aion.log.AionLoggerFactory;
 import org.aion.mcf.config.CfgPrune;
 import org.aion.mcf.core.FastImportResult;
 import org.aion.mcf.core.ImportResult;
+import org.aion.mcf.types.exceptions.HeaderStructureException;
 import org.aion.vm.api.types.ByteArrayWrapper;
 import org.aion.vm.LongLivedAvm;
-import org.aion.zero.exceptions.HeaderStructureException;
 import org.aion.zero.impl.db.AionRepositoryImpl;
 import org.aion.zero.impl.types.AionBlock;
 import org.aion.zero.types.A0BlockHeader;
@@ -677,7 +677,7 @@ public class BlockchainImplementationTest {
         AionBlock parent = chain.getBestBlock();
         A0BlockHeader.Builder headerBuilder =
                 new A0BlockHeader.Builder()
-                        .withVersion((byte) 1)
+                        .withSealType((byte) 1)
                         .withParentHash(parent.getHash())
                         .withCoinbase(parent.getCoinbase())
                         .withNumber(parent.getNumber() + 1)

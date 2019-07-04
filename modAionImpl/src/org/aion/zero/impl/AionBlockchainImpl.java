@@ -49,6 +49,7 @@ import org.aion.mcf.trie.Trie;
 import org.aion.mcf.trie.TrieImpl;
 import org.aion.mcf.trie.TrieNodeResult;
 import org.aion.mcf.types.BlockIdentifierImpl;
+import org.aion.mcf.types.exceptions.HeaderStructureException;
 import org.aion.mcf.valid.BlockHeaderValidator;
 import org.aion.mcf.valid.GrandParentBlockHeaderValidator;
 import org.aion.mcf.valid.ParentBlockHeaderValidator;
@@ -66,7 +67,6 @@ import org.aion.vm.PostExecutionLogic;
 import org.aion.vm.PostExecutionWork;
 import org.aion.vm.api.interfaces.IBloomFilter;
 import org.aion.vm.exception.VMException;
-import org.aion.zero.exceptions.HeaderStructureException;
 import org.aion.zero.impl.blockchain.ChainConfiguration;
 import org.aion.zero.impl.config.CfgAion;
 import org.aion.zero.impl.core.IAionBlockchain;
@@ -941,7 +941,7 @@ public class AionBlockchainImpl implements IAionBlockchain {
         try {
             A0BlockHeader.Builder headerBuilder =
                     new A0BlockHeader.Builder()
-                            .withVersion((byte) 1)
+                            .withSealType((byte) 1)
                             .withParentHash(parent.getHash())
                             .withCoinbase(minerCoinbase)
                             .withNumber(parent.getNumber() + 1)

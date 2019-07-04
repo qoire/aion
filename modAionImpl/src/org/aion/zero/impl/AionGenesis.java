@@ -4,6 +4,7 @@ import java.math.BigInteger;
 import java.nio.ByteBuffer;
 import java.util.HashMap;
 import java.util.Map;
+import org.aion.mcf.types.exceptions.HeaderStructureException;
 import org.aion.types.AionAddress;
 import org.aion.mcf.vm.types.DataWordImpl;
 import org.aion.vm.api.types.ByteArrayWrapper;
@@ -16,7 +17,6 @@ import org.aion.precompiled.ContractFactory;
 import org.aion.util.bytes.ByteUtil;
 import org.aion.util.types.AddressUtils;
 import org.aion.zero.impl.db.AionContractDetailsImpl;
-import org.aion.zero.exceptions.HeaderStructureException;
 import org.aion.zero.impl.types.AionBlock;
 import org.aion.zero.types.A0BlockHeader;
 
@@ -87,7 +87,7 @@ public class AionGenesis extends AionBlock {
     protected static final long GENESIS_TIMESTAMP = 0;
 
     /**
-     * Corresponds to {@link AbstractBlockHeader#getNonce()} nonce of the block, we arbitrarily set
+     * Corresponds to {@link A0BlockHeader#getNonce()} nonce of the block, we arbitrarily set
      * this to 0 for now
      */
     protected static final byte[] GENESIS_NONCE = new byte[32];

@@ -1,8 +1,6 @@
 package org.aion.valid;
 
 import static com.google.common.truth.Truth.assertThat;
-import static org.aion.mcf.types.AbstractBlockHeader.NONCE_LENGTH;
-import static org.aion.mcf.types.AbstractBlockHeader.SOLUTIONSIZE;
 import static org.mockito.Mockito.when;
 
 import java.math.BigInteger;
@@ -50,22 +48,22 @@ public class DifficultyRuleTest {
                         1,
                         1,
                         1,
-                        new byte[NONCE_LENGTH],
-                        new byte[SOLUTIONSIZE]);
+                        new byte[32],
+                        new byte[1408]);
         parentHeader =
                 new A0BlockHeader(
                         (byte) 0x01,
                         2,
                         new byte[32],
-                    AddressUtils.ZERO_ADDRESS,
+                        AddressUtils.ZERO_ADDRESS,
                         new byte[256],
                         ByteUtil.intToBytes(1),
                         null,
                         1,
                         1,
                         11,
-                        new byte[NONCE_LENGTH],
-                        new byte[SOLUTIONSIZE]);
+                        new byte[32],
+                        new byte[1408]);
     }
 
     /**
@@ -87,8 +85,8 @@ public class DifficultyRuleTest {
                         1,
                         1,
                         3,
-                        new byte[NONCE_LENGTH],
-                        new byte[SOLUTIONSIZE]);
+                        new byte[32],
+                        new byte[1408]);
 
         List<RuleError> errors = new LinkedList<>();
 
@@ -120,8 +118,8 @@ public class DifficultyRuleTest {
                         1,
                         1,
                         3,
-                        new byte[NONCE_LENGTH],
-                        new byte[SOLUTIONSIZE]);
+                        new byte[32],
+                        new byte[1408]);
 
         List<RuleError> errors = new LinkedList<>();
 

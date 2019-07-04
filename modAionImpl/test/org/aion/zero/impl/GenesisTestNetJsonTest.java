@@ -7,11 +7,11 @@ import java.io.File;
 import java.io.IOException;
 import java.math.BigInteger;
 import java.util.Map;
+import org.aion.mcf.types.exceptions.HeaderStructureException;
 import org.aion.types.AionAddress;
 import org.aion.mcf.core.AccountState;
 import org.aion.util.bytes.ByteUtil;
 import org.aion.util.types.AddressUtils;
-import org.aion.zero.exceptions.HeaderStructureException;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
