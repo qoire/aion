@@ -7,6 +7,7 @@ import static org.apache.commons.lang3.ArrayUtils.nullToEmpty;
 
 import java.math.BigInteger;
 import java.nio.ByteBuffer;
+import org.aion.base.AionTransaction;
 import org.aion.crypto.ECKey;
 import org.aion.mcf.types.InternalTransactionInterface;
 import org.aion.mcf.vm.types.DataWordImpl;

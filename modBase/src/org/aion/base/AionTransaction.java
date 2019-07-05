@@ -1,8 +1,7 @@
-package org.aion.zero.types;
+package org.aion.base;
 
-import static org.aion.util.bytes.ByteUtil.ZERO_BYTE_ARRAY;
+import static java.math.BigInteger.valueOf;
 
-import com.google.common.annotations.VisibleForTesting;
 import java.math.BigInteger;
 import java.util.Arrays;
 import org.aion.crypto.ECKey;
@@ -10,9 +9,6 @@ import org.aion.crypto.ECKey.MissingPrivateKeyException;
 import org.aion.crypto.HashUtil;
 import org.aion.crypto.ISignature;
 import org.aion.crypto.SignatureFac;
-import org.aion.mcf.types.AbstractTransaction;
-import org.aion.mcf.vm.Constants;
-import org.aion.mcf.vm.types.DataWordImpl;
 import org.aion.rlp.RLP;
 import org.aion.rlp.RLPList;
 import org.aion.types.AionAddress;
@@ -203,7 +199,7 @@ public class AionTransaction extends AbstractTransaction {
         if (!parsed) {
             rlpParse();
         }
-        return nonce == null ? ZERO_BYTE_ARRAY : nonce;
+        return nonce == null ? ByteUtil.ZERO_BYTE_ARRAY : nonce;
     }
 
     public BigInteger getNonceBI() {
@@ -220,7 +216,7 @@ public class AionTransaction extends AbstractTransaction {
         if (!parsed) {
             rlpParse();
         }
-        return this.timeStamp == null ? ZERO_BYTE_ARRAY : this.timeStamp;
+        return this.timeStamp == null ? ByteUtil.ZERO_BYTE_ARRAY : this.timeStamp;
     }
 
     public BigInteger getTimeStampBI() {
@@ -244,7 +240,7 @@ public class AionTransaction extends AbstractTransaction {
     }
 
     public void setTimeStamp(long timeStamp) {
-        this.timeStamp = BigInteger.valueOf(timeStamp).toByteArray();
+        this.timeStamp = valueOf(timeStamp).toByteArray();
         this.parsed = true;
     }
 
@@ -253,7 +249,7 @@ public class AionTransaction extends AbstractTransaction {
         if (!parsed) {
             rlpParse();
         }
-        return value == null ? ZERO_BYTE_ARRAY : value;
+        return value == null ? ByteUtil.ZERO_BYTE_ARRAY : value;
     }
 
     @Override
@@ -345,7 +341,6 @@ public class AionTransaction extends AbstractTransaction {
         this.rlpEncoded = null;
     }
 
-    @VisibleForTesting
     public void signWithSecTimeStamp(ECKey key) throws MissingPrivateKeyException {
         this.timeStamp = ByteUtil.longToBytes(TimeInstant.now().toEpochSec() * 1_000_000L);
         this.signature = key.sign(this.getRawHash());
@@ -513,12 +508,12 @@ public class AionTransaction extends AbstractTransaction {
         parsed = false;
     }
 
-    public DataWordImpl nrgPrice() {
-        return new DataWordImpl(this.nrgPrice);
+    public BigInteger nrgPrice() {
+        return valueOf(nrgPrice);
     }
 
-    public long nrgLimit() {
-        return new DataWordImpl(this.nrg).longValue();
+    public BigInteger nrgLimit() {
+        return valueOf(nrg);
     }
 
     @Override

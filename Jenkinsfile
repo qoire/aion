@@ -6,12 +6,6 @@ pipeline {
     agent any
 
     stages {
-        stage('Format') {
-            steps {
-                echo "Checking code formatting for branch: ${env.BRANCH_NAME}"
-                sh "./gradlew checkFormat"
-            }
-        }
 
         stage('Build') {
             steps {
@@ -39,6 +33,13 @@ pipeline {
                 timeout(60) {
                     sh "./gradlew ciBuild" 
                 }
+            }
+        }
+
+        stage('Format') {
+            steps {
+                echo "Checking code formatting for branch: ${env.BRANCH_NAME}"
+                sh "./gradlew checkFormat"
             }
         }
 
